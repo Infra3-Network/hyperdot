@@ -9,5 +9,6 @@ authors = [
 
 [workspace]
 members = [
-    "src/hyperdot-common/rpc"
+    "src/hyperdot-common/rpc",
+    "src/hyperdot-node"
 ]
