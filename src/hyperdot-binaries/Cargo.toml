@@ -1,0 +1,21 @@
+[package]
+name = "hyperdot-binaries"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hyperdot-node = { path = "../hyperdot-node" }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+lazy_static = { workspace = true }
+tower = { version = "0.4.13", features = ["full"] }
+tower-http = { version = "0.4.0", features = ["full"] }
+hyper = { version = "0.14.20" }
+tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
+
+[[bin]]
+name = "hyperdot-storage"
+path = "storage/main.rs"
+doctest = false
+test = false

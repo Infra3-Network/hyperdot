@@ -1,10 +1,11 @@
 use anyhow::Result as AnyResult;
 use futures::StreamExt;
+use hyperdot_common_types::WriteBlockHeaderRequest;
 use subxt::config::Header;
 
 use crate::indexer::BlockIndexer;
 use crate::indexer::PolkadotIndexer;
-use crate::storage::Storage;
+use crate::storeage::StorageChannel;
 
 #[async_trait::async_trait]
 impl BlockIndexer for PolkadotIndexer {
@@ -42,9 +43,16 @@ impl BlockIndexer for PolkadotIndexer {
         // For each block, print a bunch of information about it:
         while let Some(block) = blocks_sub.next().await {
             let block = block?;
-            let block_number = block.header().number();
+            let block_header = block.header();
             let block_hash = block.hash();
-            self.storage.write_block_header(block.header().clone()).await;
+            let req = WriteBlockHeaderRequest {
+                block_number: block_header.number() as u64,
+                block_hash: block_hash.as_bytes().to_vec(),
+                parent_hash: block_header.parent_hash.as_bytes().to_vec(),
+                state_root: block_header.state_root.as_bytes().to_vec(),
+                extrinsics_root: block_header.extrinsics_root.as_bytes().to_vec(),
+            };
+            let _ = self.storage_channel.write_block(req).await?;
 
             // println!("Block #{block_number}:");
             // println!("  Hash: {:?}", block_hash);

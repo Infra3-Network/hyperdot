@@ -1,3 +1,3 @@
 mod indexer;
-mod storage;
 mod blocks;
+pub mod storeage;

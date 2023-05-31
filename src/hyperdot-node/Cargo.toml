@@ -5,18 +5,24 @@ edition = "2021"
 
 [dependencies]
 hyperdot-common-rpc = { path = "../hyperdot-common/rpc"}
+hyperdot-common-types = {path = "../hyperdot-common/types" }
 
 jsonrpsee = { version = "0.18.2", features = ["full"]}
-serde = { version = "1.0" }
+serde = { version = "1.0", features = ["derive"]}
 serde_json = { version = "1.0" }
 anyhow = { version = "1.0" }
 futures = { version = "0.3" }
 tokio = { version = "1", features = ["full"] }
 subxt = { version = "0.28" }
 hex = { version = "0.4.3" }
-async-trait = { version = "0.1" }
+async-trait = { workspace = true }
 tokio-postgres = { version = "0.7", features = ["with-bit-vec-0_6"] }
 bit-vec = { version = "0.6" }
+tower = { version = "0.4.13", features = ["full"] }
+tower-http = { version = "0.4.0", features = ["full"] }
+hyper = { version = "0.14.20" }
+lazy_static = { workspace = true }
+tracing = { workspace = true }
 
 [build-dependencies]
     

@@ -1,7 +1,8 @@
 use anyhow::Result as AnyResult;
 use hyperdot_common_rpc::PolkadotConfiguredClient;
 
-use crate::storage::PolkadotStorage;
+use crate::storeage::PolkadotStorageChannel;
+use crate::storeage::PolkadotStorageChannelParams;
 
 #[async_trait::async_trait]
 pub trait BlockIndexer {
@@ -15,14 +16,19 @@ pub trait Indexer {
 
 pub struct PolkadotIndexer {
     pub(crate) client: PolkadotConfiguredClient,
-    pub (crate) storage: PolkadotStorage,
+    pub(crate) storage_channel: PolkadotStorageChannel,
 }
 
 impl PolkadotIndexer {
     /// Create an indexer for the test net
     pub async fn testnet() -> AnyResult<Self> {
         let client = PolkadotConfiguredClient::testnet().await?;
-        let storage = PolkadotStorage::new().await?;
-        Ok(Self { client, storage})
+        let storage_channel =
+            PolkadotStorageChannel::new(PolkadotStorageChannelParams::dev()).await?;
+        // let storage = PolkadotStorage::new().await?;
+        Ok(Self {
+            client,
+            storage_channel,
+        })
     }
 }
