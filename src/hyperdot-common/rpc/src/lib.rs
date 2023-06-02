@@ -1,12 +1,7 @@
-
-// mod blocks;
 mod jsee;
-mod client;
-// mod indexer;
 
-pub use client::{ConfiguredClient, PolkadotConfiguredClient};
-
-#[test]
-fn it_works() {
-    println!("it works!")
-}
+pub use jsee::JseeRpcClient;
+pub use jsee::JseeRpcClientParams;
+pub use jsee::POKLADOT_MAINNET;
+pub use jsee::POKLADOT_TESTNET;
+pub use jsee::SUBSTRATE_LOCALNET;

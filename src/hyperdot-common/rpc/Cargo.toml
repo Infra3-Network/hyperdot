@@ -11,8 +11,7 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true}
-
-subxt = { version = "0.28" }
+subxt = { workspace = true }
 hex = { version = "0.4.3" }
 
 

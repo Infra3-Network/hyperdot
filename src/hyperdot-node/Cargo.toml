@@ -13,7 +13,6 @@ serde_json = { version = "1.0" }
 anyhow = { version = "1.0" }
 futures = { version = "0.3" }
 tokio = { version = "1", features = ["full"] }
-subxt = { version = "0.28" }
 hex = { version = "0.4.3" }
 async-trait = { workspace = true }
 tokio-postgres = { version = "0.7", features = ["with-bit-vec-0_6"] }
@@ -23,6 +22,7 @@ tower-http = { version = "0.4.0", features = ["full"] }
 hyper = { version = "0.14.20" }
 lazy_static = { workspace = true }
 tracing = { workspace = true }
+subxt = { workspace = true }
 
 [build-dependencies]
     

@@ -20,6 +20,15 @@ use subxt::rpc::RpcSubscription;
 use subxt::Config;
 use subxt::OnlineClient;
 
+/// Constrant for polkadot main network endpoints
+pub const POKLADOT_MAINNET: &'static str = "wss://westend-rpc.polkadot.io:443";
+
+/// Constrant for polkadot test network endpoints
+pub const POKLADOT_TESTNET: &'static str = "wss://westend-rpc.polkadot.io:443";
+
+/// Constrant for substrate local network endpoints
+pub const SUBSTRATE_LOCALNET: &'static str = "ws://localhost:9944";
+
 pub(crate) struct WrapJsonrpseeClient(pub(crate) Client);
 
 struct Params(Option<Box<RawValue>>);
@@ -111,7 +120,7 @@ where C: Config
 {
     /// New client with url and params.
     pub async fn async_new(url: &str, params: &JseeRpcClientParams) -> AnyResult<Self> {
-         let uri = url.parse()?;
+        let uri = url.parse()?;
         let (tx, rx) = WsTransportClientBuilder::default()
             .connection_timeout(params.connection_timeout.clone())
             .build(uri)
@@ -127,5 +136,37 @@ where C: Config
             inner,
             online,
         })
+    }
+
+    /// Get online client.
+    #[inline]
+    pub fn get_online(&self) -> OnlineClient<C> {
+        self.online.clone()
+    }
+
+    /// Checks if the client is connected to the target.
+    #[inline]
+    pub fn is_connected(&self) -> bool {
+        self.inner.0.is_connected()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use subxt::PolkadotConfig;
+
+    use super::JseeRpcClient;
+    use super::JseeRpcClientParams;
+    use super::POKLADOT_TESTNET;
+
+    #[tokio::test]
+    async fn test_rpc_clinet_connection() {
+        let cli = JseeRpcClient::<PolkadotConfig>::async_new(
+            POKLADOT_TESTNET,
+            &JseeRpcClientParams::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(cli.is_connected(), true)
     }
 }
