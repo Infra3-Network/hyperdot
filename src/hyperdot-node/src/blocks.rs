@@ -1,96 +1,117 @@
 use anyhow::Result as AnyResult;
 use futures::StreamExt;
-use hyperdot_common_types::Event;
-use hyperdot_common_types::EventPhase;
-use hyperdot_common_types::WriteBlockHeaderRequest;
+use subxt::blocks::Block;
+use subxt::blocks::ExtrinsicEvents;
+use subxt::client::OnlineClientT;
+use subxt::config::Header;
+use subxt::events::Phase;
+use subxt::Config;
 use subxt::PolkadotConfig;
 use subxt::SubstrateConfig;
-use subxt::blocks::ExtrinsicEvents;
-use subxt::config::Header;
-use subxt::Config;
-use subxt::events::Phase;
 
+use super::types::Event;
+use super::types::EventDecode;
+use super::types::EventPhase;
+use super::types::WriteBlock;
+use super::types::WriteBlockHeaderRequest;
 use crate::indexer::BlockIndexer;
 use crate::indexer::IndexerImpl;
+use crate::runtime_api::polkadot;
 
-fn fill_events<C: Config>(
-    header: &C::Header,
-    events: &ExtrinsicEvents<C>,
-) -> AnyResult<Vec<Event>> {
-    let mut write_events = vec![];
+#[derive(Default)]
+struct ParsedEventPair {
+    raw_events: Vec<Event>,
+    decoded_events: Vec<EventDecode>,
+}
 
-    let block_hash = header.hash();
-    let block_number = header.number().try_into()?;
-    let extrinsic_hash = events.extrinsic_hash();
-    let block_events = events.all_events_in_block();
-    println!("Extrisic {:?}", extrinsic_hash);
-    for block_event in block_events.iter() {
-        let block_event = block_event?;
-        let event_index = block_event.index();
-        let event_data = block_event.bytes().to_vec();
-        let topics = block_event.topics();
-        let (topic0, topic1, topic2, topic3, topic4) = match topics.len() {
-            0 => (vec![], vec![], vec![], vec![], vec![]),
-            1 => (topics[0].as_ref().to_vec(), vec![], vec![], vec![], vec![]),
-            2 => (
-                topics[0].as_ref().to_vec(),
-                topics[1].as_ref().to_vec(),
-                vec![],
-                vec![],
-                vec![],
-            ),
-            3 => (
-                topics[0].as_ref().to_vec(),
-                topics[1].as_ref().to_vec(),
-                topics[2].as_ref().to_vec(),
-                vec![],
-                vec![],
-            ),
+impl ParsedEventPair {
+    fn fill<C: Config>(header: &C::Header, events: &ExtrinsicEvents<C>) -> AnyResult<Self> {
+        let block_hash = header.hash();
+        let block_number = header.number().try_into()?;
+        let extrinsic_hash = events.extrinsic_hash();
+        let block_events = events.all_events_in_block();
 
-            4 => (
-                topics[0].as_ref().to_vec(),
-                topics[1].as_ref().to_vec(),
-                topics[2].as_ref().to_vec(),
-                topics[3].as_ref().to_vec(),
-                vec![],
-            ),
-            5 | _ => (
-                topics[0].as_ref().to_vec(),
-                topics[1].as_ref().to_vec(),
-                topics[2].as_ref().to_vec(),
-                topics[3].as_ref().to_vec(),
-                topics[4].as_ref().to_vec(),
-            ),
-        };
-        let event_phase = match block_event.phase() {
-            Phase::Initialization => EventPhase::Initialization,
-            Phase::ApplyExtrinsic(val) => EventPhase::ApplyExtrinsic(val),
-            Phase::Finalization => EventPhase::Finalization,
-        };
+        println!("Extrisic {:?}", extrinsic_hash);
+        let mut event_pair = ParsedEventPair::default();
+        for block_event in block_events.iter() {
+            let block_event = block_event?;
+            let ev_index = block_event.index();
+            let ev_data = block_event.bytes().to_vec();
+            let ev_phase = match block_event.phase() {
+                Phase::Initialization => EventPhase::Initialization,
+                Phase::ApplyExtrinsic(val) => EventPhase::ApplyExtrinsic(val),
+                Phase::Finalization => EventPhase::Finalization,
+            };
+            let ev_pallet_index = block_event.pallet_index();
+            let ev_pallet_name = block_event.pallet_name().to_string();
 
+            let topics = block_event.topics();
+            let (topic0, topic1, topic2, topic3, topic4) = match topics.len() {
+                0 => (vec![], vec![], vec![], vec![], vec![]),
+                1 => (topics[0].as_ref().to_vec(), vec![], vec![], vec![], vec![]),
+                2 => (
+                    topics[0].as_ref().to_vec(),
+                    topics[1].as_ref().to_vec(),
+                    vec![],
+                    vec![],
+                    vec![],
+                ),
+                3 => (
+                    topics[0].as_ref().to_vec(),
+                    topics[1].as_ref().to_vec(),
+                    topics[2].as_ref().to_vec(),
+                    vec![],
+                    vec![],
+                ),
 
-        let event = Event {
-            block_hash: block_hash.as_ref().to_vec(),
-            block_number,
-            block_time: 0,
-            extrinsic_hash: extrinsic_hash.as_ref().to_vec(),
-            data: event_data,
-            index: event_index,
-            topic0,
-            topic1,
-            topic2,
-            topic3,
-            topic4,
-            phase: event_phase,
-        };
+                4 => (
+                    topics[0].as_ref().to_vec(),
+                    topics[1].as_ref().to_vec(),
+                    topics[2].as_ref().to_vec(),
+                    topics[3].as_ref().to_vec(),
+                    vec![],
+                ),
+                5 | _ => (
+                    topics[0].as_ref().to_vec(),
+                    topics[1].as_ref().to_vec(),
+                    topics[2].as_ref().to_vec(),
+                    topics[3].as_ref().to_vec(),
+                    topics[4].as_ref().to_vec(),
+                ),
+            };
+            let raw_event = Event {
+                block_hash: block_hash.as_ref().to_vec(),
+                block_number,
+                block_time: 0,
+                extrinsic_hash: extrinsic_hash.as_ref().to_vec(),
+                data: ev_data,
+                index: ev_index,
+                topic0,
+                topic1,
+                topic2,
+                topic3,
+                topic4,
+                phase: ev_phase.clone(),
+            };
 
+            let decode_event = EventDecode {
+                block_hash: block_hash.as_ref().to_vec(),
+                block_number,
+                block_time: 0,
+                extrinsic_hash: extrinsic_hash.as_ref().to_vec(),
+                index: ev_index,
+                pallet_index: ev_pallet_index,
+                pallet_name: ev_pallet_name,
+                phase: ev_phase,
+                // TODO signature
+            };
 
-        println!("{}", event);
+            event_pair.raw_events.push(raw_event);
+            event_pair.decoded_events.push(decode_event);
+        }
 
-        write_events.push(event);
+        Ok(event_pair)
     }
-
-    Ok(write_events)
 }
 
 #[async_trait::async_trait]
@@ -145,7 +166,7 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
             // println!("  Hash: {:?}", block_hash);
             // println!("  Extrinsics:");
 
-            // TODO: the subx hold ExtrinsicPartTypeIds(account, signature, extra) when 
+            // TODO: the subx hold ExtrinsicPartTypeIds(account, signature, extra) when
             // fetch block body, but the subx don't expose ExtrinsicPartTypeIds and parse
             // this type method, so, three solutions
             // 1. patch some code and push to upstream github with subx
@@ -153,29 +174,37 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
             // 3. To intergrate the subxt into hyperdot, modify some...
             // let metadta = online.rpc().metadata_legacy(Some(block_hash)).await?;
 
-            
             // Log each of the extrinsic with it's associated events:
             let body = block.body().await?;
             for ext in body.extrinsics().iter() {
                 // let idx = ext.index();
                 let ext = ext?;
-                
+
                 let events = ext.events().await?;
                 // let bytes_hex = format!("0x{}", hex::encode(ext.bytes()));
 
                 // See the API docs for more ways to decode extrinsics:
                 // let decoded_ext = ext.as_root_extrinsic::<polkadot::Call>();
-            
+
                 // println!("    Extrinsic #{idx}:");
                 // println!("      Bytes: {bytes_hex}");
                 // println!("      Decoded: {decoded_ext:?}");
                 // println!("      Events:");
                 // let extrinsic_hash = events.extrinsic_hash();
-                // let write_events = vec![];
-                let write_events = fill_events(block_header, &events)?;
+                ParsedEventPair::fill(block_header, &events)?;
+                let decoded_ext = ext.as_root_extrinsic::<polkadot::Call>()?;
+                match decoded_ext {
+                    polkadot::Call::Balances(call) => {
+                        println!("{:?}", call);
+                    },
+                    _ => {},
+                }
+
+                // println!("      Decoded: {decoded_ext:?}");
+
+                // let write_events = fill_events(block_header, &events)?;
                 // for evt in events.iter() {
                 //     let evt = evt?;
-
 
                 //     let event_data = evt.bytes().to_vec();
                 //     let event_index = evt.index();
@@ -192,7 +221,6 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
         Ok(())
     }
 }
-
 
 #[async_trait::async_trait]
 impl BlockIndexer<SubstrateConfig> for IndexerImpl<SubstrateConfig> {

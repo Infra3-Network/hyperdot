@@ -3,8 +3,6 @@ pub mod server {
     use std::sync::Arc;
 
     use anyhow::Result as AnyResult;
-    use hyperdot_common_types::WriteBlockHeaderRequest;
-    use hyperdot_common_types::WriteBlockHeaderResponse;
     use jsonrpsee::server::ServerBuilder;
     use jsonrpsee::server::ServerHandle;
     use jsonrpsee::types::error::ErrorCode;
@@ -15,6 +13,8 @@ pub mod server {
 
     use super::super::StorageOps;
     use super::super::StorageOpsParams;
+    use crate::types::WriteBlockHeaderRequest;
+    use crate::types::WriteBlockHeaderResponse;
 
     pub struct JsonRpcServerParams {
         pub address: String,
@@ -94,11 +94,12 @@ pub mod server {
 
 pub mod client {
     use anyhow::Result as AnyResult;
-    use hyperdot_common_types::WriteBlockHeaderRequest;
-    use hyperdot_common_types::WriteBlockHeaderResponse;
     use jsonrpsee::core::client::ClientT;
     use jsonrpsee::http_client::HttpClient;
     use jsonrpsee::http_client::HttpClientBuilder;
+
+    use crate::types::WriteBlockHeaderRequest;
+    use crate::types::WriteBlockHeaderResponse;
 
     pub struct JsonRpcClientParams {
         pub server_address: String,

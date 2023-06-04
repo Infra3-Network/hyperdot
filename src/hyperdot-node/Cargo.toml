@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hyperdot-common-rpc = { path = "../hyperdot-common/rpc"}
-hyperdot-common-types = {path = "../hyperdot-common/types" }
+# hyperdot-common-rpc = { path = "../hyperdot-common/rpc"}
+# hyperdot-common-types = {path = "../hyperdot-common/types" }
 
+hyperdot-common-macros = { path = "../hyperdot-common/macros" }
 jsonrpsee = { version = "0.18.2", features = ["full"]}
+jsonrpsee-core = { version = "0.18.2"}
 serde = { version = "1.0", features = ["derive"]}
 serde_json = { version = "1.0" }
 anyhow = { version = "1.0" }
@@ -23,6 +25,9 @@ hyper = { version = "0.14.20" }
 lazy_static = { workspace = true }
 tracing = { workspace = true }
 subxt = { workspace = true }
+subxt-codegen = { version = "0.29" }
+subxt-metadata = { version = '0.29' }
+syn = { version = "2.0" }
 
 [build-dependencies]
     

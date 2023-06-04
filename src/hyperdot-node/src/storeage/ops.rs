@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use anyhow::Result as AnyResult;
 use bit_vec::BitVec;
-use hyperdot_common_types::WriteBlockHeaderRequest;
 use tokio_postgres::Client;
 use tokio_postgres::Error;
 use tokio_postgres::NoTls;
 use tracing::debug;
 use tracing::info;
+
+use crate::types::WriteBlockHeaderRequest;
 
 #[derive(Clone)]
 pub struct StorageOpsParams {

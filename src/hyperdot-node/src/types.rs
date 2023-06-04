@@ -1,6 +1,7 @@
 use hyperdot_common_macros::ToParams;
 use serde::Deserialize;
 use serde::Serialize;
+
 /// A block request type
 #[derive(Serialize, Deserialize, ToParams)]
 pub struct WriteBlockHeaderRequest {
@@ -141,3 +142,4 @@ mod tests {
         assert_eq!(ev1, ev2);
     }
 }
+

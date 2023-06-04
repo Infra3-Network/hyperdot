@@ -1,9 +1,9 @@
 use anyhow::Result as AnyResult;
-use hyperdot_common_types::WriteBlockHeaderRequest;
-use hyperdot_common_types::WriteBlockHeaderResponse;
 
 use super::jsonrpc::client::JsonRpcClientParams;
 use super::jsonrpc::client::JsonRpcClinet;
+use crate::types::WriteBlockHeaderRequest;
+use crate::types::WriteBlockHeaderResponse;
 
 /// StorageChannel touch the storage and provide a
 /// unified access point to the upper layer.
