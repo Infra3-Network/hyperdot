@@ -1,4 +1,4 @@
-mod blocks;
+mod block;
 mod indexer;
 mod rpc;
 pub mod runtime_api;

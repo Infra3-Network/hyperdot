@@ -8,7 +8,7 @@ use tokio_postgres::NoTls;
 use tracing::debug;
 use tracing::info;
 
-use crate::types::WriteBlockHeaderRequest;
+use crate::types::WritableBlockHeader;
 
 #[derive(Clone)]
 pub struct StorageOpsParams {
@@ -39,7 +39,7 @@ impl StorageOps {
 }
 
 impl StorageOps {
-    pub async fn write_block_header(&self, request: &WriteBlockHeaderRequest) -> AnyResult<()> {
+    pub async fn write_block_header(&self, request: &WritableBlockHeader) -> AnyResult<()> {
         let block_number = request.block_number as i64;
         let parent_hash = BitVec::from_bytes(&request.block_hash);
         let block_hash = BitVec::from_bytes(&request.parent_hash);

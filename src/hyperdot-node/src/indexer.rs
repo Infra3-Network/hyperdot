@@ -12,7 +12,7 @@ use subxt_metadata::Metadata;
 use super::rpc::JseeRpcClient;
 use super::rpc::JseeRpcClientParams;
 use super::rpc::POLKADOT_MAINNET;
-use super::rpc::POLKADOT_TESTNET;
+use super::rpc::SUBSTRATE_LOCALNET;
 // use hyperdot_common_rpc::PolkadotConfiguredClient;
 use crate::storeage::PolkadotStorageChannel;
 use crate::storeage::PolkadotStorageChannelParams;
@@ -43,7 +43,7 @@ impl<C: Config> IndexerImpl<C> {
     /// Create an indexer for the test net
     pub async fn dev() -> AnyResult<Self> {
         let client =
-            JseeRpcClient::<C>::async_new(POLKADOT_MAINNET, &JseeRpcClientParams::default())
+            JseeRpcClient::<C>::async_new(SUBSTRATE_LOCALNET, &JseeRpcClientParams::default())
                 .await?;
         // let client = PolkadotConfiguredClient::testnet().await?;
         // let storage_channel =
@@ -93,5 +93,5 @@ fn generate_runtime_api(metadata: Metadata) {
 
 #[tokio::test]
 async fn it_works() {
-    generate_runtime_api_from_url(POLKADOT_TESTNET).await.unwrap();
+    generate_runtime_api_from_url(SUBSTRATE_LOCALNET).await.unwrap();
 }

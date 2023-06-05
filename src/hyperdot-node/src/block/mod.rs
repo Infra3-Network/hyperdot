@@ -1,6 +1,7 @@
 use anyhow::Result as AnyResult;
 use futures::StreamExt;
 use subxt::blocks::Block;
+use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OnlineClientT;
 use subxt::config::Header;
@@ -8,15 +9,31 @@ use subxt::events::Phase;
 use subxt::Config;
 use subxt::PolkadotConfig;
 use subxt::SubstrateConfig;
+use subxt::client::OfflineClientT;
 
+// use super::types::pallets::Balance;
 use super::types::Event;
 use super::types::EventDecode;
 use super::types::EventPhase;
-use super::types::WriteBlock;
-use super::types::WriteBlockHeaderRequest;
+use super::types::WritableBlock;
+use super::types::WritableBlockHeader;
 use crate::indexer::BlockIndexer;
 use crate::indexer::IndexerImpl;
 use crate::runtime_api::polkadot;
+use crate::types::WritableExtrinsicEvent;
+// use crate::types::pallets::BalanceEvent;
+
+pub mod handle;
+
+pub struct CachedBody<T, C> 
+where
+    T: Config,
+    C: OfflineClientT<T>,
+{
+    pub details: Vec<ExtrinsicDetails<T, C>>,
+    pub events: Vec<ExtrinsicEvents<T>>,
+}
+
 
 #[derive(Default)]
 struct ParsedEventPair {
@@ -153,7 +170,7 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
             let block_header = block.header();
             let block_hash = block.hash();
             let block_number = block.header().number().try_into()?;
-            let req = WriteBlockHeaderRequest {
+            let req = WritableBlockHeader {
                 block_number,
                 block_hash: block_hash.as_ref().to_vec(),
                 parent_hash: block_header.parent_hash.as_bytes().to_vec(),
@@ -181,6 +198,7 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
                 let ext = ext?;
 
                 let events = ext.events().await?;
+
                 // let bytes_hex = format!("0x{}", hex::encode(ext.bytes()));
 
                 // See the API docs for more ways to decode extrinsics:
@@ -193,28 +211,52 @@ impl BlockIndexer<PolkadotConfig> for IndexerImpl<PolkadotConfig> {
                 // let extrinsic_hash = events.extrinsic_hash();
                 ParsedEventPair::fill(block_header, &events)?;
                 let decoded_ext = ext.as_root_extrinsic::<polkadot::Call>()?;
-                match decoded_ext {
-                    polkadot::Call::Balances(call) => {
-                        println!("{:?}", call);
-                    },
-                    _ => {},
-                }
+                // match decoded_ext {
+                //     polkadot::Call::Balances(call) => {
+                //         match call {
+                //             polkadot::balances::Call::transfer{dest, value} => {
+                //                 println!("dest => {:?}, value => {}", dest, value)
+                //             },
+                //             _ => {},
+                //         }
+
+                //     },
+                //     _ => {},
+                // }
 
                 // println!("      Decoded: {decoded_ext:?}");
 
                 // let write_events = fill_events(block_header, &events)?;
-                // for evt in events.iter() {
-                //     let evt = evt?;
+                let extrinsic_hash = events.extrinsic_hash();
+                for evt in events.iter() {
+                    let evt = evt?;
+                    let transfer_event = evt.as_event::<polkadot::balances::events::Transfer>()?;
+                    if let Some(transfer_event) = transfer_event {
+                        // let balance = Balance {
+                        //     block_hash: block_hash.as_ref().to_vec(),
+                        //     block_number: block_number,
+                        //     block_time: 0,
+                        //     extrinsic_hash: extrinsic_hash.as_ref().to_vec(),
+                        //     index: evt.index(),
+                        //     call: BalanceEvent::transfer {
+                        //         from: transfer_event.from.0,
+                        //         to: transfer_event.to.0,
+                        //         amount: transfer_event.amount,
+                        //     },
+                        // };
+                        // println!("{}", balance);
 
-                //     let event_data = evt.bytes().to_vec();
-                //     let event_index = evt.index();
+                        // println!("{}", serde_json::to_string_pretty(&balance).unwrap());
+                    }
+                    // let event_data = evt.bytes().to_vec();
+                    // let event_index = evt.index();
 
-                //     let pallet_name = evt.pallet_name();
-                //     let event_name = evt.variant_name();
-                //     let event_values = evt.field_values()?;
-                //     println!("        {pallet_name}_{event_name}");
-                //     println!("          {}", event_values);
-                // }
+                    // let pallet_name = evt.pallet_name();
+                    // let event_name = evt.variant_name();
+                    // let event_values = evt.field_values()?;
+                    // println!("        {pallet_name}_{event_name}");
+                    // println!("          {}", event_values);
+                }
             }
         }
 
@@ -228,6 +270,8 @@ impl BlockIndexer<SubstrateConfig> for IndexerImpl<SubstrateConfig> {
         todo!()
     }
 }
+
+
 
 #[tokio::test]
 async fn it_works() {

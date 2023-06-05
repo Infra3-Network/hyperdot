@@ -13,7 +13,7 @@ pub mod server {
 
     use super::super::StorageOps;
     use super::super::StorageOpsParams;
-    use crate::types::WriteBlockHeaderRequest;
+    use crate::types::WritableBlockHeader;
     use crate::types::WriteBlockHeaderResponse;
 
     pub struct JsonRpcServerParams {
@@ -72,7 +72,7 @@ pub mod server {
         info!("🍾 register write_block_header method");
         let _ =
             rpc_module.register_async_method("write_block_header", |params, ctx| async move {
-                let req = match params.parse::<WriteBlockHeaderRequest>() {
+                let req = match params.parse::<WritableBlockHeader>() {
                     Err(err) => return ResponsePayload::Error(err),
                     Ok(req) => req,
                 };
@@ -98,7 +98,7 @@ pub mod client {
     use jsonrpsee::http_client::HttpClient;
     use jsonrpsee::http_client::HttpClientBuilder;
 
-    use crate::types::WriteBlockHeaderRequest;
+    use crate::types::WritableBlockHeader;
     use crate::types::WriteBlockHeaderResponse;
 
     pub struct JsonRpcClientParams {
@@ -119,7 +119,7 @@ pub mod client {
 
         pub async fn write_block_header(
             &self,
-            request: WriteBlockHeaderRequest,
+            request: WritableBlockHeader,
         ) -> AnyResult<WriteBlockHeaderResponse> {
             let response = self
                 .client

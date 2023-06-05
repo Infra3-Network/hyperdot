@@ -2,7 +2,7 @@ use anyhow::Result as AnyResult;
 
 use super::jsonrpc::client::JsonRpcClientParams;
 use super::jsonrpc::client::JsonRpcClinet;
-use crate::types::WriteBlockHeaderRequest;
+use crate::types::WritableBlockHeader;
 use crate::types::WriteBlockHeaderResponse;
 
 /// StorageChannel touch the storage and provide a
@@ -11,7 +11,7 @@ use crate::types::WriteBlockHeaderResponse;
 pub trait StorageChannel {
     async fn write_block(
         &self,
-        request: WriteBlockHeaderRequest,
+        request: WritableBlockHeader,
     ) -> anyhow::Result<WriteBlockHeaderResponse>;
 }
 
@@ -46,7 +46,7 @@ impl PolkadotStorageChannel {
 impl StorageChannel for PolkadotStorageChannel {
     async fn write_block(
         &self,
-        request: WriteBlockHeaderRequest,
+        request: WritableBlockHeader,
     ) -> anyhow::Result<WriteBlockHeaderResponse> {
         self.jsonrpc_client.write_block_header(request).await
     }

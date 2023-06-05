@@ -9,5 +9,5 @@
 //     };
 // }
 
-#[subxt::subxt(runtime_metadata_path = "E:\\Workspace\\codes\\infra3\\hyperdot\\metadatas\\polkadot_metadata_full.scale")]
+#[subxt::subxt(runtime_metadata_path = "../../metadatas/polkadot_metadata_full.scale")]
 pub mod polkadot {}
