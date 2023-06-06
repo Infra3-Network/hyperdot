@@ -1,5 +1,5 @@
-use hyperdot_node::storeage::JsonRpcServer;
-use hyperdot_node::storeage::JsonRpcServerParams;
+use hyperdot_node::storeage::jsonrpc::server::JsonRpcServer;
+use hyperdot_node::storeage::jsonrpc::server::JsonRpcServerParams;
 use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
@@ -9,7 +9,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(filter)
         .finish()
         .try_init()?;
- 
+
     let params = JsonRpcServerParams::dev();
     let server = JsonRpcServer::new(params).await?;
     let handler = server.start().await?;

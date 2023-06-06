@@ -1,19 +1,20 @@
 use std::marker::PhantomData;
 
-use subxt::blocks::ExtrinsicDetails;
 use subxt::client::OfflineClient;
 use subxt::client::OfflineClientT;
 use subxt::config::Header;
 use subxt::Config;
+use subxt::OnlineClient;
 use subxt::PolkadotConfig;
 
-use super::CachedBody;
+use super::sync::CachedBody;
 use crate::runtime_api::polkadot;
-use crate::types::WritableExtrinsic;
-use crate::types::pallet::balance;
 use crate::types::pallet::system::support;
-use crate::types::WritableBlock;
-use crate::types::WritableBlockHeader;
+use crate::types::BlockDescribe;
+use crate::types::BlockHeaderDescribe;
+use crate::types::ExtrinsicDescribe;
+
+pub const UNKOWN_PALLET_NAME: &'static str = "unkown_pallet";
 
 pub trait BlockHandler<T, C>
 where
@@ -31,16 +32,23 @@ where
 {
     header: T::Header,
     body: CachedBody<T, C>,
-
-    output: WritableBlock,
-    _m1: PhantomData<T>,
-    _m2: PhantomData<C>,
 }
 
-impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
-    for BlockHandleImpl<PolkadotConfig, OfflineClient<PolkadotConfig>>
+impl<T, C> BlockHandleImpl<T, C>
+where
+    T: Config,
+    C: OfflineClientT<T>,
 {
-    type Output = WritableBlock;
+    /// Create a block handle.
+    pub fn new(header: T::Header, body: CachedBody<T, C>) -> Self {
+        Self { header, body }
+    }
+}
+
+impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
+    for BlockHandleImpl<PolkadotConfig, OnlineClient<PolkadotConfig>>
+{
+    type Output = BlockDescribe;
 
     fn handle(self) -> anyhow::Result<Self::Output> {
         let block_hash = self.header.hash();
@@ -49,7 +57,7 @@ impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
         let state_root = self.header.state_root;
         let extrinsics_root = self.header.extrinsics_root;
 
-        let writable_header = WritableBlockHeader {
+        let block_header_desc = BlockHeaderDescribe {
             block_number: block_number as u64,
             block_hash: block_hash.as_bytes().to_vec(),
             parent_hash: parent_hash.as_bytes().to_vec(),
@@ -57,10 +65,8 @@ impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
             extrinsics_root: extrinsics_root.as_bytes().to_vec(),
         };
 
-        let mut writable_extrinsics = vec![];
+        let mut block_extrinsics_desc = vec![];
         for (i, ext) in self.body.details.iter().enumerate() {
-            let extrinsic_index = ext.index();
-
             let events = &self.body.events[i];
             let mut writable_extrinsic_events = vec![];
 
@@ -116,9 +122,8 @@ impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
                     polkadot::Event::Balances(balance_event) => match balance_event {
                         polkadot::balances::Event::Transfer { from, to, amount } => {
                             writable_extrinsic_events.push(
-                                crate::types::WritableExtrinsicEvent::Transfer(
+                                crate::types::ExtrinsicEventDescribe::Transfer(
                                     crate::types::pallet::balance::event::Transfer {
-                                        index: extrinsic_index,
                                         from: from.0,
                                         to: to.0,
                                         amount,
@@ -133,9 +138,8 @@ impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
                         }
                         polkadot::balances::Event::Withdraw { who, amount } => {
                             writable_extrinsic_events.push(
-                                crate::types::WritableExtrinsicEvent::Withdraw(
+                                crate::types::ExtrinsicEventDescribe::Withdraw(
                                     crate::types::pallet::balance::event::Withdraw {
-                                        index: extrinsic_index,
                                         who: who.0,
                                         amount: amount,
                                         success: if extrinsic_success.is_some() {
@@ -152,32 +156,25 @@ impl BlockHandler<PolkadotConfig, OfflineClient<PolkadotConfig>>
                     _ => {}
                 }
             }
-            
-            writable_extrinsics.push(WritableExtrinsic{
+
+            let extrinsic_index = ext.index();
+            let extrinsic_pallet_index = ext.pallet_index();
+            let extrinsic_pallet_name = ext
+                .pallet_name()
+                .map_or(UNKOWN_PALLET_NAME.to_string(), |name| name.to_string());
+            let extrinsic_hash = events.extrinsic_hash();
+            block_extrinsics_desc.push(ExtrinsicDescribe {
+                index: extrinsic_index,
+                pallet_index: extrinsic_pallet_index,
+                pallet_name: extrinsic_pallet_name,
+                hash: extrinsic_hash.as_bytes().to_vec(),
                 events: writable_extrinsic_events,
             })
         }
-        todo!()
+
+        Ok(BlockDescribe {
+            header: block_header_desc,
+            extrinsics: block_extrinsics_desc,
+        })
     }
 }
-
-// impl<T, C> BlockHandle<T, C>
-// where
-//     T: Config,
-//     C: OfflineClientT<T>,
-// {
-//     pub fn handle(&mut self) {
-//         let block_hash = self.header.hash();
-//         let block_number = self.header.number().into();
-//         self.header.
-
-//         let writable_header = WritableBlockHeader {
-//             block_number,
-//             block_hash,
-//             parent_hash,
-//             state_root,
-//             extrinsics_root,
-//         };
-//     }
-
-// }

@@ -56,23 +56,22 @@ pub mod support {
     }
 
     /// Reason why a pallet call failed.
-    #[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+    #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
     pub struct ModuleError {
         /// Module index, matching the metadata module index.
         pub index: u8,
         /// Module specific error value.
         pub error: [u8; MAX_MODULE_ERROR_ENCODED_SIZE],
         /// Optional error message.
-        pub message: Option<&'static str>,
+        pub message: Option<String>,
     }
 
     /// Reason why a dispatch call failed.
     /// see https://paritytech.github.io/substrate/master/src/sp_runtime/lib.rs.html#526-560
-    #[derive(Eq, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Eq, Clone, Debug, PartialEq, Serialize, Deserialize)]
     pub enum DispatchError {
         /// Some error occurred.
-        Other(&'static str),
+        Other(String),
         /// Failed to lookup some data.
         CannotLookup,
         /// A bad origin.
@@ -172,11 +171,12 @@ pub mod event {
     use super::support::DispatchError;
     use super::support::DispatchInfo;
 
-    #[derive(Default)]
+    #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
     pub struct ExtrinsicSuccess {
         pub dispatch_info: DispatchInfo,
     }
 
+    #[derive(Clone, serde::Serialize, serde::Deserialize)]
     pub struct ExtrinsicFailed {
         dispatch_error: DispatchError,
         dispatch_info: DispatchInfo,

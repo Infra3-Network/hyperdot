@@ -13,8 +13,11 @@ pub mod server {
 
     use super::super::StorageOps;
     use super::super::StorageOpsParams;
-    use crate::types::WritableBlockHeader;
+    use crate::types::BlockDescribe;
+    use crate::types::BlockHeaderDescribe;
     use crate::types::WriteBlockHeaderResponse;
+    use crate::types::WriteBlockRequest;
+    use crate::types::WriteBlockResponse;
 
     pub struct JsonRpcServerParams {
         pub address: String,
@@ -71,21 +74,38 @@ pub mod server {
         let mut rpc_module = RpcModule::new(ops);
         info!("🍾 register write_block_header method");
         let _ =
-            rpc_module.register_async_method("write_block_header", |params, ctx| async move {
-                let req = match params.parse::<WritableBlockHeader>() {
+            // rpc_module.register_async_method("write_block_header", |params, ctx| async move {
+            //     let req = match params.parse::<BlockHeaderDescribe>() {
+            //         Err(err) => return ResponsePayload::Error(err),
+            //         Ok(req) => req,
+            //     };
+
+            //     info!("🌍 write block #{}", req.block_number);
+            //     match ctx.write_block_header(&req).await {
+            //         Err(err) => {
+            //             tracing::error!("⚠️ write block #{} error: {}", req.block_number, err);
+            //             return ResponsePayload::Error(ErrorObject::from(ErrorCode::InternalError));
+            //         }
+            //         Ok(_) => {}
+            //     }
+            //     ResponsePayload::result(WriteBlockHeaderResponse {})
+            // })?;
+
+            rpc_module.register_async_method("write_block", |params, ctx| async move {
+                let req = match params.parse::<WriteBlockRequest>() {
                     Err(err) => return ResponsePayload::Error(err),
                     Ok(req) => req,
                 };
 
-                info!("🌍 write block #{}", req.block_number);
-                match ctx.write_block_header(&req).await {
-                    Err(err) => {
-                        tracing::error!("⚠️ write block #{} error: {}", req.block_number, err);
-                        return ResponsePayload::Error(ErrorObject::from(ErrorCode::InternalError));
-                    }
-                    Ok(_) => {}
-                }
-                ResponsePayload::result(WriteBlockHeaderResponse {})
+                info!("🌍 write blocks #{}", req.blocks.len());
+                // match ctx.write_block_header(&req).await {
+                //     Err(err) => {
+                //         tracing::error!("⚠️ write block #{} error: {}", req.block_number, err);
+                //         return ResponsePayload::Error(ErrorObject::from(ErrorCode::InternalError));
+                //     }
+                //     Ok(_) => {}
+                // }
+                ResponsePayload::result(WriteBlockResponse {})
             })?;
 
         Ok(rpc_module)
@@ -98,11 +118,17 @@ pub mod client {
     use jsonrpsee::http_client::HttpClient;
     use jsonrpsee::http_client::HttpClientBuilder;
 
-    use crate::types::WritableBlockHeader;
+    use crate::types::BlockDescribe;
+    use crate::types::BlockHeaderDescribe;
     use crate::types::WriteBlockHeaderResponse;
+    use crate::types::WriteBlockRequest;
+    use crate::types::WriteBlockResponse;
 
-    pub struct JsonRpcClientParams {
-        pub server_address: String,
+    pub struct JsonRpcClientParams {}
+    impl Default for JsonRpcClientParams {
+        fn default() -> Self {
+            Self {}
+        }
     }
 
     pub struct JsonRpcClinet {
@@ -111,21 +137,17 @@ pub mod client {
     }
 
     impl JsonRpcClinet {
-        pub fn new(params: JsonRpcClientParams) -> AnyResult<Self> {
-            let client = HttpClientBuilder::default().build(&params.server_address)?;
+        pub fn new(url: &str, params: JsonRpcClientParams) -> AnyResult<Self> {
+            let client = HttpClientBuilder::default().build(url)?;
 
             Ok(Self { params, client })
         }
 
-        pub async fn write_block_header(
+        pub async fn write_block(
             &self,
-            request: WritableBlockHeader,
-        ) -> AnyResult<WriteBlockHeaderResponse> {
-            let response = self
-                .client
-                .request("write_block_header", request)
-                .await
-                .unwrap();
+            request: WriteBlockRequest,
+        ) -> AnyResult<WriteBlockResponse> {
+            let response = self.client.request("write_block", request).await.unwrap();
             Ok(response)
         }
     }

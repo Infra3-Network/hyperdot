@@ -4,11 +4,9 @@ use serde::Serialize;
 
 pub mod pallet;
 
-
-
 /// A block request type
-#[derive(Serialize, Deserialize, ToParams)]
-pub struct WritableBlockHeader {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BlockHeaderDescribe {
     pub block_number: u64,
     pub block_hash: Vec<u8>,
     pub parent_hash: Vec<u8>,
@@ -96,200 +94,47 @@ pub struct EventDecode {
     // TODO signature
 }
 
-pub struct WritableBlock {
-    pub header: WritableBlockHeader,
-    pub events: Vec<Event>,
-    pub event_decodes: Vec<EventDecode>,
-    pub extrinsics: Vec<WritableExtrinsic>,
-}
-
 use pallet::balance::event::Transfer;
 use pallet::balance::event::Withdraw;
 use pallet::system::event::ExtrinsicFailed;
 use pallet::system::event::ExtrinsicSuccess;
 
-pub enum WritableExtrinsicEvent {
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub enum ExtrinsicEventDescribe {
     Transfer(Transfer),
     Withdraw(Withdraw),
     ExtrinsicSuccess(ExtrinsicSuccess),
     ExtrinsicFailed(ExtrinsicFailed),
 }
 
-pub struct WritableExtrinsic {
-    pub events: Vec<WritableExtrinsicEvent>,
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtrinsicDescribe {
+    /// The index of the extrinsic in the block.
+    pub index: u32,
+    /// The pallet index.
+    pub pallet_index: u8,
+    /// The name of the pallet from whence the extrinsic originated.
+    pub pallet_name: String,
+    /// The hash of extrinsic.
+    pub hash: Vec<u8>,
+    pub events: Vec<ExtrinsicEventDescribe>,
 }
 
-
-
-pub mod runtime {
-    // use std::fmt::Debug;
-
-    // use serde::de::DeserializeOwned;
-    // use serde::Deserialize;
-    // use serde::Serialize;
-
-    //#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-    //pub enum MultiAddress<AccountId, AccountIndex>
-    //{
-    //    /// It's an account ID (pubkey).
-    //    Id(AccountId),
-    //    /// It's an account index.
-    //    Index(AccountIndex),
-    //    /// It's some arbitrary raw bytes.
-    //    Raw(Vec<u8>),
-    //    /// It's a 32 byte representation.
-    //    Address32([u8; 32]),
-    //    /// Its a 20 byte representation.
-    //    Address20([u8; 20]),
-    //}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct BlockDescribe {
+    pub header: BlockHeaderDescribe,
+    // pub events: Vec<Event>,
+    // pub event_decodes: Vec<EventDecode>,
+    pub extrinsics: Vec<ExtrinsicDescribe>,
 }
 
-// pub mod pallets {
-//     pub mod balance {
-//         use std::fmt::Debug;
+#[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
+pub struct WriteBlockRequest {
+    pub blocks: Vec<BlockDescribe>,
+}
 
-//         use serde::de::DeserializeOwned;
-//         use serde::Deserialize;
-//         use serde::Serialize;
-//         use subxt::utils::H256;
-
-//         use super::runtime;
-
-//         #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-//         pub struct Transfer {
-//             pub block_hash: Vec<u8>,
-//             pub block_number: u64,
-//             pub block_time: u64, // TODO: not used currently.
-//             pub extrinsic_hash: Vec<u8>,
-//             pub index: u32,
-//             pub from: [u8; 32],
-//             pub to: [u8; 32],
-//             pub amount: u128,
-//             pub success: bool, // streaming?
-//         }
-
-//         impl std::fmt::Display for Transfer {
-//             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//                 write!(f, "block_number: {}\n", self.block_number)?;
-//                 write!(
-//                     f,
-//                     "block_hash: {:?}\n",
-//                     H256::from_slice(self.block_hash.as_ref())
-//                 )?;
-//                 write!(
-//                     f,
-//                     "extrinsic_hash: {:?}\n",
-//                     H256::from_slice(self.extrinsic_hash.as_ref())
-//                 )?;
-//                 write!(f, "index: {}\n", self.index)?;
-//                 write!(
-//                     f,
-//                     "transfer {:?} => {:?}, {}\n",
-//                     H256::from(&self.from),
-//                     H256::from(&self.to),
-//                     self.amount
-//                 )
-//             }
-//         }
-
-//         #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-//         pub struct Withdraw {
-//             pub block_hash: Vec<u8>,
-//             pub block_number: u64,
-//             pub block_time: u64, // TODO: not used currently.
-//             pub extrinsic_hash: Vec<u8>,
-//             pub index: u32,
-//             pub who: [u8; 32],
-//             pub amount: u128,
-//             pub success: bool,
-//         }
-
-//         impl std::fmt::Display for Withdraw {
-//             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//                 write!(f, "block_number: {}\n", self.block_number)?;
-//                 write!(
-//                     f,
-//                     "block_hash: {:?}\n",
-//                     H256::from_slice(self.block_hash.as_ref())
-//                 )?;
-//                 write!(
-//                     f,
-//                     "extrinsic_hash: {:?}\n",
-//                     H256::from_slice(self.extrinsic_hash.as_ref())
-//                 )?;
-//                 write!(f, "index: {}\n", self.index)?;
-//                 write!(
-//                     f,
-//                     "withdraw {:?} <- {}\n",
-//                     H256::from(&self.who),
-//                     self.amount
-//                 )
-//             }
-//         }
- 
-//     }
-
-//     use std::fmt::Debug;
-
-//     use serde::de::DeserializeOwned;
-//     use serde::Deserialize;
-//     use serde::Serialize;
-//     use subxt::utils::H256;
-
-//     use super::runtime;
-
-//     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-//     pub enum BalanceEvent {
-//         transfer {
-//             from: [u8; 32],
-//             to: [u8; 32],
-//             amount: u128,
-//         },
-//     }
-
-//     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-//     pub struct Balance {
-//         pub block_hash: Vec<u8>,
-//         pub block_number: u64,
-//         pub block_time: u64, // TODO: not used currently.
-//         pub extrinsic_hash: Vec<u8>,
-//         pub index: u32,
-//         pub call: BalanceEvent,
-//     }
-
-//     impl std::fmt::Display for Balance {
-//         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//             write!(f, "Balance\n")?;
-//             write!(f, "  block_number: {}\n", self.block_number)?;
-//             write!(
-//                 f,
-//                 "  block_hash: {:?}\n",
-//                 H256::from_slice(self.block_hash.as_ref())
-//             )?;
-//             write!(
-//                 f,
-//                 "  extrinsic_hash: {:?}\n",
-//                 H256::from_slice(self.extrinsic_hash.as_ref())
-//             )?;
-//             write!(f, "  index: {}\n", self.index)?;
-//             match self.call {
-//                 BalanceEvent::transfer { from, to, amount } => {
-//                     write!(f, "  Transfer\n")?;
-//                     write!(
-//                         f,
-//                         "    {:?} => {:?}, {}\n",
-//                         H256::from(&from),
-//                         H256::from(&to),
-//                         amount
-//                     )?;
-//                 }
-//             }
-//             write!(f, "\n")
-
-//             // match
-//         }
-//     }
-// }
+#[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
+pub struct WriteBlockResponse {}
 
 #[cfg(test)]
 mod tests {
