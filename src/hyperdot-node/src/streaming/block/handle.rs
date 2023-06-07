@@ -1,6 +1,3 @@
-use std::marker::PhantomData;
-
-use subxt::client::OfflineClient;
 use subxt::client::OfflineClientT;
 use subxt::config::Header;
 use subxt::Config;

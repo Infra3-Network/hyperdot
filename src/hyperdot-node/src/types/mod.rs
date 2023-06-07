@@ -133,6 +133,14 @@ pub struct WriteBlockRequest {
     pub blocks: Vec<BlockDescribe>,
 }
 
+impl WriteBlockRequest {
+    pub fn block_numbers(&self) -> Vec<u64> {
+        self.blocks.iter().map(|block| block.header.block_number).collect::<Vec<_>>()
+    }
+}
+
+
+
 #[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
 pub struct WriteBlockResponse {}
 

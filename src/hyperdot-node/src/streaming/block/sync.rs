@@ -1,31 +1,26 @@
-use anyhow::Result as AnyResult;
+
 use futures::StreamExt;
-use subxt::blocks::Block;
+
 use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OfflineClientT;
-use subxt::client::OnlineClientT;
-use subxt::config::Header;
-use subxt::events::Phase;
+
+
+
 use subxt::Config;
-use subxt::OfflineClient;
+
 use subxt::OnlineClient;
 use subxt::PolkadotConfig;
-use subxt::SubstrateConfig;
-use tokio::sync::mpsc::unbounded_channel;
+
+
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::block::handle::BlockHandleImpl;
-use crate::block::handle::BlockHandler;
+use super::handle::BlockHandleImpl;
+use super::handle::BlockHandler;
+
 use crate::rpc::JseeRpcClient;
-use crate::runtime_api::polkadot;
+use crate::rpc::JseeRpcClientParams;
 use crate::types::BlockDescribe;
-use crate::types::BlockHeaderDescribe;
-// use super::types::pallets::Balance;
-use crate::types::Event;
-use crate::types::EventDecode;
-use crate::types::EventPhase;
-use crate::types::ExtrinsicEventDescribe;
 
 pub struct CachedBody<T, C>
 where
@@ -43,8 +38,9 @@ pub struct Syncer<T: Config> {
 impl<T> Syncer<T>
 where T: Config
 {
-    pub fn new(client: JseeRpcClient<T>) -> Self {
-        Self { client }
+    pub async fn new(url: &str) -> anyhow::Result<Self> {
+        let client = JseeRpcClient::<T>::async_new(&url, &JseeRpcClientParams::default()).await?;
+        Ok(Self { client })
     }
 }
 
@@ -81,7 +77,8 @@ async fn sync_blocks_fut(
 }
 
 impl Syncer<PolkadotConfig> {
-    pub fn start(&mut self, tx: UnboundedSender<BlockDescribe>) -> anyhow::Result<()> {
+    pub fn spawn(self, tx: UnboundedSender<BlockDescribe>) -> anyhow::Result<()> {
+        tracing::info!("🔥 spawnning polkadot syncer"); // TODO: add name for syncer
         let online = self.client.get_online();
         tokio::spawn(async move { sync_blocks_fut(online, tx).await });
         Ok(())

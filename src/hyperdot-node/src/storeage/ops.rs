@@ -2,42 +2,54 @@ use std::sync::Arc;
 
 use anyhow::Result as AnyResult;
 use bit_vec::BitVec;
-use tokio_postgres::Client;
+
 use tokio_postgres::Error;
 use tokio_postgres::NoTls;
 use tracing::debug;
 use tracing::info;
 
-use crate::types::BlockHeaderDescribe;
+use crate::types::BlockDescribe;
 
-#[derive(Clone)]
-pub struct StorageOpsParams {
-    pub postgres_addr: String,
+#[async_trait::async_trait]
+pub trait BlockStorageOps
+where Self: Send + Sync {
+    async fn write_block(&self, blocks: &[BlockDescribe]) -> anyhow::Result<()>;
 }
 
-pub struct StorageOps {
-    // pg_client: Client,
+#[async_trait::async_trait]
+pub trait StorageOps: Send + Sync + BlockStorageOps {
+
 }
 
-impl StorageOps {
-    pub async fn new(params: StorageOpsParams) -> AnyResult<Self> {
-        // // "host=127.0.0.1 port=15721 user=noisepage_user password=noisepage_pass dbname=polkadot"
-        // let (client, connection) = tokio_postgres::connect(&params.postgres_addr, NoTls).await?;
 
-        // // The connection object performs the actual communication with the database,
-        // // so spawn it off to run on its own.
-        // tokio::spawn(async move {
-        //     if let Err(e) = connection.await {
-        //         panic!("connection error: {}", e);
-        //     }
+// #[derive(Clone)]
+// pub struct StorageOpsParams {
+//     pub postgres_addr: String,
+// }
 
-        //     info!("🌛 postgres connected");
-        // });
-        // let pg_client = client;
-        // Ok(Self { pg_client })
-        Ok(Self {})
-    }
-}
+// pub struct StorageOps {
+//     // pg_client: Client,
+// }
+
+// impl StorageOps {
+//     pub async fn new(params: StorageOpsParams) -> AnyResult<Self> {
+//         // // "host=127.0.0.1 port=15721 user=noisepage_user password=noisepage_pass dbname=polkadot"
+//         // let (client, connection) = tokio_postgres::connect(&params.postgres_addr, NoTls).await?;
+
+//         // // The connection object performs the actual communication with the database,
+//         // // so spawn it off to run on its own.
+//         // tokio::spawn(async move {
+//         //     if let Err(e) = connection.await {
+//         //         panic!("connection error: {}", e);
+//         //     }
+
+//         //     info!("🌛 postgres connected");
+//         // });
+//         // let pg_client = client;
+//         // Ok(Self { pg_client })
+//         Ok(Self {})
+//     }
+// }
 
 // impl StorageOps {
 //     pub async fn write_block_header(&self, request: &BlockHeaderDescribe) -> AnyResult<()> {

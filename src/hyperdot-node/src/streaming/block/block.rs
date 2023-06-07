@@ -1,40 +1,13 @@
-pub mod handle;
-pub mod sync;
-pub mod streaming;
 
-use tokio::sync::mpsc::unbounded_channel;
 use anyhow::Result as AnyResult;
-use futures::StreamExt;
-use subxt::OnlineClient;
-use subxt::blocks::Block;
-use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
-use subxt::client::OfflineClientT;
-use subxt::client::OnlineClientT;
 use subxt::config::Header;
 use subxt::events::Phase;
 use subxt::Config;
-use subxt::OfflineClient;
-use subxt::PolkadotConfig;
-use subxt::SubstrateConfig;
 
-use super::types::BlockDescribe;
-use super::types::BlockHeaderDescribe;
-// use super::types::pallets::Balance;
-use super::types::Event;
-use super::types::EventDecode;
-use super::types::EventPhase;
-
-use crate::block::sync::Syncer;
-use crate::block::streaming::Streaming;
-use crate::block::handle::BlockHandleImpl;
-use crate::block::handle::BlockHandler;
-use crate::runtime_api::polkadot;
-use crate::types::ExtrinsicEventDescribe;
-use crate::rpc::JseeRpcClient;
-use crate::rpc::JseeRpcClientParams;
-
-// use crate::types::pallets::BalanceEvent;
+use crate::types::Event;
+use crate::types::EventDecode;
+use crate::types::EventPhase;
 
 #[derive(Default)]
 struct ParsedEventPair {
@@ -133,19 +106,19 @@ impl ParsedEventPair {
 }
 
 
-#[tokio::test]
-async fn it_works() {
-    let url = "ws://192.168.124.34:9944";
-    let client = JseeRpcClient::<PolkadotConfig>::async_new(url, &JseeRpcClientParams::default()).await.unwrap();
-    let (tx, rx) = unbounded_channel();
+// #[tokio::test]
+// async fn it_works() {
+//     let url = "ws://192.168.124.34:9944";
+//     let client = JseeRpcClient::<PolkadotConfig>::async_new(url, &JseeRpcClientParams::default()).await.unwrap();
+//     let (tx, rx) = unbounded_channel();
 
-    let mut sync = Syncer::new(client);
-    sync.start(tx).unwrap();
+//     let mut sync = Syncer::new(client);
+//     sync.start(tx).unwrap();
 
-    let mut streaming = Streaming::new();
-    streaming.start(rx);
+//     let mut streaming = Streaming::new();
+//     streaming.start(rx);
 
-    tokio::time::sleep(std::time::Duration::from_secs(600)).await;
-    // let index = IndexerImpl::<PolkadotConfig>::dev().await.unwrap();
-    // index.sync_blocks().await.unwrap();
-}
+//     tokio::time::sleep(std::time::Duration::from_secs(600)).await;
+//     // let index = IndexerImpl::<PolkadotConfig>::dev().await.unwrap();
+//     // index.sync_blocks().await.unwrap();
+// }

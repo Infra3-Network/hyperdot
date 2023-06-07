@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use tokio::sync::mpsc::UnboundedReceiver;
+use anyhow::anyhow;
 use tokio::sync::RwLock;
+use url::Url;
 
 use super::SpeakerChild;
 use super::SpeakerOps;
@@ -15,10 +16,12 @@ pub struct SpeakerController {
 }
 
 impl SpeakerController {
-    pub fn new() -> Self {
-        Self {
-            childs: Arc::new(RwLock::new(Vec::new())),
-        }
+    pub async fn new(urls: &[String]) -> anyhow::Result<Self> {
+
+        let childs = super::url::parse_child(urls).await?;
+        Ok(Self {
+            childs: Arc::new(RwLock::new(childs)),
+        })
     }
 
     /// Add child into controller. `None` returned if given name exists controller.
@@ -53,11 +56,8 @@ impl SpeakerController {
         let mut wl = self.childs.write().await;
         Some(wl.swap_remove(index))
     }
-}
 
-#[async_trait::async_trait]
-impl SpeakerOps for SpeakerController {
-    async fn write_block(&self, request: WriteBlockRequest) -> anyhow::Result<WriteBlockResponse> {
+    pub async fn write_block(&self, request: WriteBlockRequest) -> anyhow::Result<WriteBlockResponse> {
         let rl = self.childs.read().await;
         for child in rl.iter() {
             child.write_block(request.clone()).await?;

@@ -1,40 +1,46 @@
 pub mod server {
     use std::net::SocketAddr;
+
     use std::sync::Arc;
 
     use anyhow::Result as AnyResult;
     use jsonrpsee::server::ServerBuilder;
     use jsonrpsee::server::ServerHandle;
-    use jsonrpsee::types::error::ErrorCode;
-    use jsonrpsee::types::ErrorObject;
+    
+    
     use jsonrpsee::types::ResponsePayload;
     use jsonrpsee::RpcModule;
     use tracing::info;
 
-    use super::super::StorageOps;
-    use super::super::StorageOpsParams;
-    use crate::types::BlockDescribe;
-    use crate::types::BlockHeaderDescribe;
-    use crate::types::WriteBlockHeaderResponse;
+    
     use crate::types::WriteBlockRequest;
     use crate::types::WriteBlockResponse;
+    use super::super::StorageController;
+    use super::super::StorageControllerParams;
 
     pub struct JsonRpcServerParams {
         pub address: String,
-        pub storage_ops_params: StorageOpsParams,
+        pub stores: Vec<String>,
     }
 
     impl JsonRpcServerParams {
         pub fn dev() -> Self {
             Self {
-            address: String::from("127.0.0.1:15722"),
-            storage_ops_params: StorageOpsParams { postgres_addr: "host=127.0.0.1 port=15721 user=noisepage_user password=noisepage_pass dbname=polkadot".to_string() }
-        }
+                address: String::from("127.0.0.1:15722"),
+                stores: vec![
+                    "postgres://hyperdot:5432?user=postgres&password=postgres&dbname=polkadot".to_string(),
+                ],
+            }
         }
     }
 
+    #[derive(Clone)]
+    pub struct JsonRpcServerContext {
+        storage_controller: Arc<StorageController>, // TODO: make as weak
+    }
+
     pub struct JsonRpcServer {
-        storage_ops: Arc<StorageOps>,
+        storage_controller: Arc<StorageController>,
         params: JsonRpcServerParams,
     }
 
@@ -51,10 +57,12 @@ pub mod server {
 
     impl JsonRpcServer {
         pub async fn new(params: JsonRpcServerParams) -> AnyResult<Self> {
-            let storage_ops = Arc::new(StorageOps::new(params.storage_ops_params.clone()).await?);
+            let controller = StorageController::new(StorageControllerParams {
+                store_urls: params.stores.clone(),
+            }).await?;
 
             Ok(Self {
-                storage_ops,
+                storage_controller:  Arc::new(controller),
                 params,
             })
         }
@@ -62,7 +70,10 @@ pub mod server {
         pub async fn start(&self) -> AnyResult<JsonRpcServerHandle> {
             let addr = self.params.address.parse::<SocketAddr>()?;
             let server = ServerBuilder::new().build(addr).await?;
-            let rpc_module = register_methods(self.storage_ops.clone())?;
+            let ctx = JsonRpcServerContext {
+                storage_controller: self.storage_controller.clone(),
+            };
+            let rpc_module = register_methods(ctx)?;
             info!("🌗 json-rpc server listening at {}", addr);
             let handle = server.start(rpc_module)?;
 
@@ -70,11 +81,10 @@ pub mod server {
         }
     }
 
-    pub fn register_methods(ops: Arc<StorageOps>) -> AnyResult<RpcModule<Arc<StorageOps>>> {
-        let mut rpc_module = RpcModule::new(ops);
-        info!("🍾 register write_block_header method");
-        let _ =
-            // rpc_module.register_async_method("write_block_header", |params, ctx| async move {
+    pub fn register_methods(ctx: JsonRpcServerContext) -> AnyResult<RpcModule<JsonRpcServerContext>> {
+        let mut rpc_module = RpcModule::new(ctx);
+        info!("🍾 register write_block method");
+        // rpc_module.register_async_method("write_block_header", |params, ctx| async move {
             //     let req = match params.parse::<BlockHeaderDescribe>() {
             //         Err(err) => return ResponsePayload::Error(err),
             //         Ok(req) => req,
@@ -90,14 +100,14 @@ pub mod server {
             //     }
             //     ResponsePayload::result(WriteBlockHeaderResponse {})
             // })?;
-
-            rpc_module.register_async_method("write_block", |params, ctx| async move {
+        let _ = rpc_module.register_async_method("write_block", |params, ctx| async move {
                 let req = match params.parse::<WriteBlockRequest>() {
                     Err(err) => return ResponsePayload::Error(err),
                     Ok(req) => req,
                 };
-
-                info!("🌍 write blocks #{}", req.blocks.len());
+                let block_numbers = req.block_numbers();
+                info!("🌍 json-rpc server: recv blocks #{:?}", block_numbers);
+                ctx.storage_controller.write_block(&req.blocks).await.unwrap();
                 // match ctx.write_block_header(&req).await {
                 //     Err(err) => {
                 //         tracing::error!("⚠️ write block #{} error: {}", req.block_number, err);
@@ -105,6 +115,7 @@ pub mod server {
                 //     }
                 //     Ok(_) => {}
                 // }
+
                 ResponsePayload::result(WriteBlockResponse {})
             })?;
 
@@ -118,9 +129,9 @@ pub mod client {
     use jsonrpsee::http_client::HttpClient;
     use jsonrpsee::http_client::HttpClientBuilder;
 
-    use crate::types::BlockDescribe;
-    use crate::types::BlockHeaderDescribe;
-    use crate::types::WriteBlockHeaderResponse;
+    
+    
+    
     use crate::types::WriteBlockRequest;
     use crate::types::WriteBlockResponse;
 
@@ -147,7 +158,7 @@ pub mod client {
             &self,
             request: WriteBlockRequest,
         ) -> AnyResult<WriteBlockResponse> {
-            let response = self.client.request("write_block", request).await.unwrap();
+            let response = self.client.request("write_block", request).await?;
             Ok(response)
         }
     }

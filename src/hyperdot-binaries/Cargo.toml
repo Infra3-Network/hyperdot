@@ -13,9 +13,16 @@ tower = { version = "0.4.13", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["full"] }
 hyper = { version = "0.14.20" }
 tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
+subxt = { workspace = true }
 
 [[bin]]
 name = "hyperdot-storage"
 path = "storage/main.rs"
+doctest = false
+test = false
+
+[[bin]]
+name = "hyperdot-streaming"
+path = "streaming/main.rs"
 doctest = false
 test = false
