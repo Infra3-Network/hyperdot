@@ -1,6 +1,7 @@
 pub mod handle;
 pub mod sync;
 pub mod block;
+pub mod streaming;
 // pub mod streaming;
 
 // pub use sync::SyncerParams;

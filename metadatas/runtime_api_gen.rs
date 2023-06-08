@@ -1517,7 +1517,7 @@ pub mod runtime_api {
                 }
                 impl ::subxt::blocks::StaticExtrinsic for SetCodeWithoutChecks {
                     const PALLET: &'static str = "System";
-                    const CALL: &'static str = "set_code_without_checks";
+                    const  : &'static str = "set_code_without_checks";
                 }
                 #[derive(
                     :: subxt :: ext :: codec :: Decode,

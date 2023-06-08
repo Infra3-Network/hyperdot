@@ -27,7 +27,8 @@ impl StorageController {
 	pub async fn write_block(&self, blocks: &[BlockDescribe]) -> anyhow::Result<()> {
 		let rl = self.stores.read().await;
 		for store in rl.iter() {
-			let _ = store.write_block(blocks).await?;
+			let transformed_blocks = store.transform_block(blocks).await?;
+			let _ = store.write_block(transformed_blocks).await?;
 		}
 
 		Ok(())

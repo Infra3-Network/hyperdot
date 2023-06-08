@@ -157,11 +157,6 @@ pub mod event {
 
     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
     pub struct Transfer {
-        // pub block_hash: Vec<u8>,
-        // pub block_number: u64,
-        // pub block_time: u64, // TODO: not used currently.
-        // pub extrinsic_hash: Vec<u8>,
-        // pub index: u32,
         pub from: [u8; 32],
         pub to: [u8; 32],
         pub amount: u128,
@@ -194,11 +189,6 @@ pub mod event {
 
     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
     pub struct Withdraw {
-        // pub block_hash: Vec<u8>,
-        // pub block_number: u64,
-        // pub block_time: u64, // TODO: not used currently.
-        // pub extrinsic_hash: Vec<u8>,
-        // pub index: u32,
         pub who: [u8; 32],
         pub amount: u128,
         pub success: bool,

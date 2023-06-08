@@ -1,5 +1,5 @@
 // use hyperdot_node::streaming::jsonrpc::server::JsonRpcServerParams;
-use hyperdot_node::streaming::Streaming;
+use hyperdot_node::streaming::BlockStreaming;
 use hyperdot_node::streaming::OpenParams;
 use hyperdot_node::streaming::SpawnPolkadotParams;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -19,10 +19,10 @@ async fn main() -> anyhow::Result<()> {
 			"jsonrpc://127.0.0.1:15722?scheme=http".to_string(),
 		]
 	};
-	let mut streaming = Streaming::<PolkadotConfig>::open(&params).await?;
+	let mut streaming = BlockStreaming::<PolkadotConfig>::open(&params).await?;
 
 	let params = SpawnPolkadotParams {
-		scheme: "ws".to_string(),
+		scheme: "ws".to_string(),	
 		host: "192.168.124.34".to_string(),
 		port: 9944,
 		// block_sync_urls: vec![

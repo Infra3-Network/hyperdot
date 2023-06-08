@@ -3,6 +3,7 @@ use subxt::config::Header;
 use subxt::Config;
 use subxt::OnlineClient;
 use subxt::PolkadotConfig;
+use subxt::events::Phase;
 
 use super::sync::CachedBody;
 use crate::runtime_api::polkadot;
@@ -10,8 +11,23 @@ use crate::types::pallet::system::support;
 use crate::types::BlockDescribe;
 use crate::types::BlockHeaderDescribe;
 use crate::types::ExtrinsicDescribe;
+use crate::types::RawEvent;
+use crate::types::EventPhase;
 
 pub const UNKOWN_PALLET_NAME: &'static str = "unkown_pallet";
+
+
+
+
+macro_rules! get_call_type_string {
+    ($call_type:tt) => {
+        stringify!($call_type)
+    };
+}
+
+
+
+
 
 pub trait BlockHandler<T, C>
 where
@@ -62,10 +78,16 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
             extrinsics_root: extrinsics_root.as_bytes().to_vec(),
         };
 
+        let mut block_raw_events = vec![];
         let mut block_extrinsics_desc = vec![];
         for (i, ext) in self.body.details.iter().enumerate() {
             let events = &self.body.events[i];
             let mut writable_extrinsic_events = vec![];
+
+            let extrinsic_hash = events.extrinsic_hash();
+
+            let decoded_ext = ext.as_root_extrinsic::<polkadot::Call>();
+            println!("call type: {}", get_call_type_string!(decoded_ext));
 
             // find system event if success or failed
             let mut extrinsic_success = None;
@@ -114,6 +136,67 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
 
             for event in events.iter() {
                 let event = event?;
+
+                let topics = event.topics();
+                let (topic0, topic1, topic2, topic3, topic4) = match topics.len() {
+                    0 => (vec![], vec![], vec![], vec![], vec![]),
+                    1 => (topics[0].as_ref().to_vec(), vec![], vec![], vec![], vec![]),
+                    2 => (
+                        topics[0].as_ref().to_vec(),
+                        topics[1].as_ref().to_vec(),
+                        vec![],
+                        vec![],
+                        vec![],
+                    ),
+                    3 => (
+                        topics[0].as_ref().to_vec(),
+                        topics[1].as_ref().to_vec(),
+                        topics[2].as_ref().to_vec(),
+                        vec![],
+                        vec![],
+                    ),
+
+                    4 => (
+                        topics[0].as_ref().to_vec(),
+                        topics[1].as_ref().to_vec(),
+                        topics[2].as_ref().to_vec(),
+                        topics[3].as_ref().to_vec(),
+                        vec![],
+                    ),
+                    5 | _ => (
+                        topics[0].as_ref().to_vec(),
+                        topics[1].as_ref().to_vec(),
+                        topics[2].as_ref().to_vec(),
+                        topics[3].as_ref().to_vec(),
+                        topics[4].as_ref().to_vec(),
+                    ),
+                };
+
+
+                let block_raw_event = RawEvent {
+                    block_hash: block_hash.as_bytes().to_vec(),
+                    block_number: block_number as u64,
+                    block_time: 0,
+                    extrinsic_hash: extrinsic_hash.as_bytes().to_vec(),
+                    data: event.bytes().to_vec(),
+                    index: event.index(),
+                    topic0,
+                    topic1,
+                    topic2,
+                    topic3,
+                    topic4,
+                    phase: match event.phase() {
+                        Phase::Initialization => EventPhase::Initialization,
+                        Phase::ApplyExtrinsic(val) => EventPhase::ApplyExtrinsic(val),
+                        Phase::Finalization => EventPhase::Finalization,
+                    },
+                    pallet_name: event.pallet_name().to_string(),
+                    pallet_index: event.pallet_index(),
+                };
+                block_raw_events.push(block_raw_event);
+
+           
+
                 let root_event = event.as_root_event::<polkadot::Event>()?;
                 match root_event {
                     polkadot::Event::Balances(balance_event) => match balance_event {
@@ -159,7 +242,6 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
             let extrinsic_pallet_name = ext
                 .pallet_name()
                 .map_or(UNKOWN_PALLET_NAME.to_string(), |name| name.to_string());
-            let extrinsic_hash = events.extrinsic_hash();
             block_extrinsics_desc.push(ExtrinsicDescribe {
                 index: extrinsic_index,
                 pallet_index: extrinsic_pallet_index,
@@ -172,6 +254,7 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
         Ok(BlockDescribe {
             header: block_header_desc,
             extrinsics: block_extrinsics_desc,
+            raw_events: block_raw_events,
         })
     }
 }

@@ -28,9 +28,20 @@ pub enum EventPhase {
     Initialization,
 }
 
+
+impl EventPhase {
+    pub fn to_string(&self) -> String {
+        match *self {
+            EventPhase::ApplyExtrinsic(value) => format!("ApplyExtrinsic({})", value),
+            EventPhase::Finalization => "Finalization".to_string(),
+            EventPhase::Initialization => "Initialization".to_string(),
+        }
+    }
+}
+
 /// Raw event.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToParams)]
-pub struct Event {
+pub struct RawEvent {
     pub block_hash: Vec<u8>,
     pub block_number: u64,
     pub block_time: u64, // TODO: not used currently.
@@ -43,9 +54,11 @@ pub struct Event {
     pub topic3: Vec<u8>,
     pub topic4: Vec<u8>,
     pub phase: EventPhase,
+    pub pallet_name: String,    
+    pub pallet_index: u8,   
 }
 
-impl std::fmt::Display for Event {
+impl std::fmt::Display for RawEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let topics = {
             let mut nums = 0;
@@ -80,19 +93,6 @@ impl std::fmt::Display for Event {
     }
 }
 
-/// Decoded event.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToParams)]
-pub struct EventDecode {
-    pub block_hash: Vec<u8>,
-    pub block_number: u64,
-    pub block_time: u64, // TODO: not used currently.
-    pub extrinsic_hash: Vec<u8>,
-    pub index: u32,
-    pub phase: EventPhase,
-    pub pallet_name: String,
-    pub pallet_index: u8,
-    // TODO signature
-}
 
 use pallet::balance::event::Transfer;
 use pallet::balance::event::Withdraw;
@@ -123,9 +123,11 @@ pub struct ExtrinsicDescribe {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlockDescribe {
     pub header: BlockHeaderDescribe,
-    // pub events: Vec<Event>,
-    // pub event_decodes: Vec<EventDecode>,
+    /// The decoded extrinsics record key of extrinsic in block.
     pub extrinsics: Vec<ExtrinsicDescribe>,
+    /// The raw events record all evnets of block and they are 
+    /// maybe scattered in multiple extrinics in block.
+    pub raw_events: Vec<RawEvent>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
@@ -139,19 +141,17 @@ impl WriteBlockRequest {
     }
 }
 
-
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
 pub struct WriteBlockResponse {}
 
 #[cfg(test)]
 mod tests {
-    use super::Event;
+    use super::RawEvent;
     use super::EventPhase;
 
     #[test]
     fn event_encode_deode() {
-        let ev1 = Event {
+        let ev1 = RawEvent {
             block_hash: vec![0_u8; 2],
             block_number: 1,
             block_time: 0,

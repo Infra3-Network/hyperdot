@@ -9,8 +9,8 @@ use subxt::PolkadotConfig;
 use subxt::Config;
 
 
-use super::block::Syncer;
-use super::speaker::SpeakerController;
+use super::Syncer;
+use crate::streaming::speaker::SpeakerController;
 use crate::types::WriteBlockRequest;
 // use crate::speaker::SpeakerController;
 
@@ -31,18 +31,18 @@ pub struct SpawnPolkadotParams {
     pub port: u16, 
 }
 
-pub struct StreamingHandle {
+pub struct BlockStreamingHandle {
     task_handle: JoinHandle<anyhow::Result<()>>,
     speaker: Arc<SpeakerController>,
 }
 
-impl StreamingHandle {
+impl BlockStreamingHandle {
     pub async fn stopped(self) -> anyhow::Result<()> {
         self.task_handle.await?
     }
 }
 
-pub struct Streaming<T> 
+pub struct BlockStreaming<T> 
 where
     T: Config
 {
@@ -50,7 +50,7 @@ where
     _m: PhantomData<T>,
 }
 
-impl<T> Streaming<T> 
+impl<T> BlockStreaming<T> 
 where
     T: Config
 {
@@ -64,8 +64,8 @@ where
     }
 }
 
-impl Streaming<PolkadotConfig> {
-    pub async fn spawn(self, params: &SpawnPolkadotParams) -> anyhow::Result<StreamingHandle> {
+impl BlockStreaming<PolkadotConfig> {
+    pub async fn spawn(self, params: &SpawnPolkadotParams) -> anyhow::Result<BlockStreamingHandle> {
         let (tx, mut rx) = unbounded_channel();
         // for u in params.block_sync_urls.iter() {
         //     let url = Url::parse(u)?;
@@ -146,7 +146,7 @@ impl Streaming<PolkadotConfig> {
             Ok(())
         });
     
-        Ok(StreamingHandle {
+        Ok(BlockStreamingHandle {
             task_handle,
             speaker,
         })
