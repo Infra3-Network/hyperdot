@@ -46,6 +46,7 @@ pub struct RawEvent {
     pub block_number: u64,
     pub block_time: u64, // TODO: not used currently.
     pub extrinsic_hash: Vec<u8>,
+    /// Unindexed data containing further information on the event
     pub data: Vec<u8>,
     pub index: u32,
     pub topic0: Vec<u8>,

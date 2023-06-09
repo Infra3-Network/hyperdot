@@ -1,4 +1,5 @@
 pub mod handle;
+pub mod handle_pallet;
 pub mod sync;
 pub mod block;
 pub mod streaming;

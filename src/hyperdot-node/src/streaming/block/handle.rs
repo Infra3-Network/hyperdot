@@ -6,6 +6,9 @@ use subxt::PolkadotConfig;
 use subxt::events::Phase;
 
 use super::sync::CachedBody;
+use super::handle_pallet::PalletEventHandle;
+use super::handle_pallet::PalletEventHandler;
+
 use crate::runtime_api::polkadot;
 use crate::types::pallet::system::support;
 use crate::types::BlockDescribe;
@@ -15,17 +18,6 @@ use crate::types::RawEvent;
 use crate::types::EventPhase;
 
 pub const UNKOWN_PALLET_NAME: &'static str = "unkown_pallet";
-
-
-
-
-macro_rules! get_call_type_string {
-    ($call_type:tt) => {
-        stringify!($call_type)
-    };
-}
-
-
 
 
 
@@ -78,6 +70,8 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
             extrinsics_root: extrinsics_root.as_bytes().to_vec(),
         };
 
+        let mut pallet_event_handle = PalletEventHandle<polkadot::Event>::new();
+
         let mut block_raw_events = vec![];
         let mut block_extrinsics_desc = vec![];
         for (i, ext) in self.body.details.iter().enumerate() {
@@ -85,9 +79,6 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
             let mut writable_extrinsic_events = vec![];
 
             let extrinsic_hash = events.extrinsic_hash();
-
-            let decoded_ext = ext.as_root_extrinsic::<polkadot::Call>();
-            println!("call type: {}", get_call_type_string!(decoded_ext));
 
             // find system event if success or failed
             let mut extrinsic_success = None;
@@ -198,6 +189,7 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
            
 
                 let root_event = event.as_root_event::<polkadot::Event>()?;
+                pallet_event_handle.handle(&root_event)?;
                 match root_event {
                     polkadot::Event::Balances(balance_event) => match balance_event {
                         polkadot::balances::Event::Transfer { from, to, amount } => {
