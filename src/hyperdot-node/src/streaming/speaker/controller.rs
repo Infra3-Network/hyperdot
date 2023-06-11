@@ -17,7 +17,6 @@ pub struct SpeakerController {
 
 impl SpeakerController {
     pub async fn new(urls: &[String]) -> anyhow::Result<Self> {
-
         let childs = super::url::parse_child(urls).await?;
         Ok(Self {
             childs: Arc::new(RwLock::new(childs)),
@@ -25,7 +24,7 @@ impl SpeakerController {
     }
 
     /// Add child into controller. `None` returned if given name exists controller.
-    pub async fn add_child(
+    pub async fn add_cild(
         &self,
         name: &str,
         child: Box<dyn SpeakerChild>,
@@ -57,7 +56,10 @@ impl SpeakerController {
         Some(wl.swap_remove(index))
     }
 
-    pub async fn write_block(&self, request: WriteBlockRequest) -> anyhow::Result<WriteBlockResponse> {
+    pub async fn write_block(
+        &self,
+        request: WriteBlockRequest,
+    ) -> anyhow::Result<WriteBlockResponse> {
         let rl = self.childs.read().await;
         for child in rl.iter() {
             child.write_block(request.clone()).await?;

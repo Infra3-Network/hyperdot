@@ -11,3 +11,18 @@
 
 #[subxt::subxt(runtime_metadata_path = "../../metadatas/polkadot_metadata_full.scale")]
 pub mod polkadot {}
+
+
+/// Naming can get runtime api name.
+pub trait Naming {
+    fn what(&self) -> String;
+}
+
+impl Naming for polkadot::Event {
+    fn what(&self) -> String {
+        match self {
+            polkadot::Event::Balances(_) => "Balances".to_string(),
+            _ => "Unkown".to_string(),
+        }
+    }
+}

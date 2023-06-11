@@ -1,19 +1,16 @@
-use std::sync::Arc;
 use std::marker::PhantomData;
-
+use std::sync::Arc;
 
 use anyhow::anyhow;
+use subxt::Config;
+use subxt::PolkadotConfig;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::task::JoinHandle;
-use subxt::PolkadotConfig;
-use subxt::Config;
-
 
 use super::Syncer;
 use crate::streaming::speaker::SpeakerController;
 use crate::types::WriteBlockRequest;
 // use crate::speaker::SpeakerController;
-
 
 // pub trait StreamFilter {
 //     type Data;
@@ -28,7 +25,7 @@ pub struct OpenParams {
 pub struct SpawnPolkadotParams {
     pub scheme: String,
     pub host: String,
-    pub port: u16, 
+    pub port: u16,
 }
 
 pub struct BlockStreamingHandle {
@@ -42,21 +39,18 @@ impl BlockStreamingHandle {
     }
 }
 
-pub struct BlockStreaming<T> 
-where
-    T: Config
+pub struct BlockStreaming<T>
+where T: Config
 {
     speaker: Arc<SpeakerController>,
     _m: PhantomData<T>,
 }
 
-impl<T> BlockStreaming<T> 
-where
-    T: Config
+impl<T> BlockStreaming<T>
+where T: Config
 {
     pub async fn open(params: &OpenParams) -> anyhow::Result<Self> {
         let speaker = SpeakerController::new(&params.child_urls).await?;
-
         Ok(Self {
             speaker: Arc::new(speaker),
             _m: PhantomData,
@@ -72,7 +66,7 @@ impl BlockStreaming<PolkadotConfig> {
         //     match url.scheme() {
         //         "polkadot" => {
         //             let query_pairs = url.query_pairs();
-        //             // parse scheme + host + port 
+        //             // parse scheme + host + port
         //             let mut scheme = None;
         //             for query_pair in query_pairs {
         //                 let (key, value) = query_pair;
@@ -109,7 +103,7 @@ impl BlockStreaming<PolkadotConfig> {
         // }
 
         let url = format!("{}://{}:{}", params.scheme, params.host, params.port); // TOOD: add mainnet etc..
-        tracing::info!("🤳🏼 start sync polkadot at {}", url);        
+        tracing::info!("🤳🏼 start sync polkadot at {}", url);
         let syncer = Syncer::<PolkadotConfig>::new(&url).await?;
         let _syncer_handle = syncer.spawn(tx.clone())?;
 
@@ -121,11 +115,14 @@ impl BlockStreaming<PolkadotConfig> {
                     None => {
                         tracing::error!("block channel closed");
                         return Err(anyhow!("channel of syncer closed"));
-                    },
+                    }
                     Some(block_desc) => block_desc,
                 };
 
-                tracing::info!("📞 streaming: recv block #{}", block_desc.header.block_number);
+                tracing::info!(
+                    "📞 streaming: recv block #{}",
+                    block_desc.header.block_number
+                );
 
                 let request = WriteBlockRequest {
                     blocks: vec![block_desc],
@@ -135,17 +132,16 @@ impl BlockStreaming<PolkadotConfig> {
                 match self.speaker.write_block(request).await {
                     Err(err) => {
                         tracing::error!("write block failed"); // TODO: given more error info
-                    },
+                    }
                     Ok(_) => {
                         tracing::info!("🔚 write block {:?} success", block_numbers); // TODO: given more info
                     }
                 }
-
             }
 
             Ok(())
         });
-    
+
         Ok(BlockStreamingHandle {
             task_handle,
             speaker,

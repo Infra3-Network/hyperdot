@@ -1,23 +1,14 @@
-
 use futures::StreamExt;
-
 use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OfflineClientT;
-
-
-
 use subxt::Config;
-
 use subxt::OnlineClient;
 use subxt::PolkadotConfig;
-
-
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::handle::BlockHandleImpl;
 use super::handle::BlockHandler;
-
 use crate::rpc::JseeRpcClient;
 use crate::rpc::JseeRpcClientParams;
 use crate::types::BlockDescribe;

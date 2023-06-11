@@ -5,6 +5,7 @@ mod controller;
 mod postgres;
 mod spark;
 mod influxdb;
+mod utils;
 
 pub use ops::BlockStorageOps;
 pub use ops::StorageOps;

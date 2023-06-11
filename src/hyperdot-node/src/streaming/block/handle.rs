@@ -1,25 +1,25 @@
 use subxt::client::OfflineClientT;
 use subxt::config::Header;
+use subxt::events::Phase;
+use subxt::ext::codec::Decode;
+use subxt::ext::codec::Encode;
 use subxt::Config;
 use subxt::OnlineClient;
 use subxt::PolkadotConfig;
-use subxt::events::Phase;
 
-use super::sync::CachedBody;
 use super::handle_pallet::PalletEventHandle;
 use super::handle_pallet::PalletEventHandler;
-
+use super::sync::CachedBody;
 use crate::runtime_api::polkadot;
 use crate::types::pallet::system::support;
 use crate::types::BlockDescribe;
 use crate::types::BlockHeaderDescribe;
+use crate::types::EventDescribe;
+use crate::types::EventPhase;
 use crate::types::ExtrinsicDescribe;
 use crate::types::RawEvent;
-use crate::types::EventPhase;
 
 pub const UNKOWN_PALLET_NAME: &'static str = "unkown_pallet";
-
-
 
 pub trait BlockHandler<T, C>
 where
@@ -70,112 +70,78 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
             extrinsics_root: extrinsics_root.as_bytes().to_vec(),
         };
 
-        let mut pallet_event_handle = PalletEventHandle<polkadot::Event>::new();
+        // let mut pallet_event_handle = PalletEventHandle<polkadot::Event>::new();
 
-        let mut block_raw_events = vec![];
+        // let mut block_raw_events = vec![];
         let mut block_extrinsics_desc = vec![];
+
         for (i, ext) in self.body.details.iter().enumerate() {
             let events = &self.body.events[i];
-            let mut writable_extrinsic_events = vec![];
+            let mut events_desc = vec![];
 
             let extrinsic_hash = events.extrinsic_hash();
 
             // find system event if success or failed
-            let mut extrinsic_success = None;
+            // let mut extrinsic_success = None;
+            // for event in events.iter() {
+            //     let event = event?;
+            //     if let Some(success) =
+            //         event.as_event::<polkadot::system::events::ExtrinsicSuccess>()?
+            //     {
+            //         let mut writable_success =
+            //             crate::types::pallet::system::event::ExtrinsicSuccess::default();
+
+            //         match success.dispatch_info.class {
+            //             polkadot::runtime_types::frame_support::dispatch::DispatchClass::Normal => {
+            //                 writable_success.dispatch_info.class = support::DispatchClass::Normal;
+            //             },
+            //             polkadot::runtime_types::frame_support::dispatch::DispatchClass::Operational => {
+            //                 writable_success.dispatch_info.class = support::DispatchClass::Operational;
+            //             },
+            //             polkadot::runtime_types::frame_support::dispatch::DispatchClass::Mandatory => {
+            //                 writable_success.dispatch_info.class = support::DispatchClass::Operational;
+            //             },
+            //         }
+
+            //         match success.dispatch_info.pays_fee {
+            //             polkadot::runtime_types::frame_support::dispatch::Pays::Yes => {
+            //                 writable_success.dispatch_info.pays_fee = support::Pays::Yes;
+            //             }
+            //             polkadot::runtime_types::frame_support::dispatch::Pays::No => {
+            //                 writable_success.dispatch_info.pays_fee = support::Pays::No;
+            //             }
+            //         }
+
+            //         writable_success.dispatch_info.weight.proof_size =
+            //             success.dispatch_info.weight.proof_size;
+            //         writable_success.dispatch_info.weight.ref_time =
+            //             success.dispatch_info.weight.ref_time;
+            //         extrinsic_success = Some(writable_success);
+            //     }
+
+            //     if let Some(failed) =
+            //         event.as_event::<polkadot::system::events::ExtrinsicSuccess>()?
+            //     {
+            //         // TODO: impl
+            //     }
+            // }
+
             for event in events.iter() {
                 let event = event?;
-                if let Some(success) =
-                    event.as_event::<polkadot::system::events::ExtrinsicSuccess>()?
-                {
-                    let mut writable_success =
-                        crate::types::pallet::system::event::ExtrinsicSuccess::default();
-
-                    match success.dispatch_info.class {
-                        polkadot::runtime_types::frame_support::dispatch::DispatchClass::Normal => {
-                            writable_success.dispatch_info.class = support::DispatchClass::Normal;
-                        },
-                        polkadot::runtime_types::frame_support::dispatch::DispatchClass::Operational => {
-                            writable_success.dispatch_info.class = support::DispatchClass::Operational;
-                        },
-                        polkadot::runtime_types::frame_support::dispatch::DispatchClass::Mandatory => {
-                            writable_success.dispatch_info.class = support::DispatchClass::Operational;
-                        },
-                    }
-
-                    match success.dispatch_info.pays_fee {
-                        polkadot::runtime_types::frame_support::dispatch::Pays::Yes => {
-                            writable_success.dispatch_info.pays_fee = support::Pays::Yes;
-                        }
-                        polkadot::runtime_types::frame_support::dispatch::Pays::No => {
-                            writable_success.dispatch_info.pays_fee = support::Pays::No;
-                        }
-                    }
-
-                    writable_success.dispatch_info.weight.proof_size =
-                        success.dispatch_info.weight.proof_size;
-                    writable_success.dispatch_info.weight.ref_time =
-                        success.dispatch_info.weight.ref_time;
-                    extrinsic_success = Some(writable_success);
-                }
-
-                if let Some(failed) =
-                    event.as_event::<polkadot::system::events::ExtrinsicSuccess>()?
-                {
-                    // TODO: impl
-                }
-            }
-
-            for event in events.iter() {
-                let event = event?;
+                /// decode root event and as bytes
+                let root_event = event.as_root_event::<polkadot::Event>()?;
+                let root_event_data = root_event.encode();
 
                 let topics = event.topics();
-                let (topic0, topic1, topic2, topic3, topic4) = match topics.len() {
-                    0 => (vec![], vec![], vec![], vec![], vec![]),
-                    1 => (topics[0].as_ref().to_vec(), vec![], vec![], vec![], vec![]),
-                    2 => (
-                        topics[0].as_ref().to_vec(),
-                        topics[1].as_ref().to_vec(),
-                        vec![],
-                        vec![],
-                        vec![],
-                    ),
-                    3 => (
-                        topics[0].as_ref().to_vec(),
-                        topics[1].as_ref().to_vec(),
-                        topics[2].as_ref().to_vec(),
-                        vec![],
-                        vec![],
-                    ),
 
-                    4 => (
-                        topics[0].as_ref().to_vec(),
-                        topics[1].as_ref().to_vec(),
-                        topics[2].as_ref().to_vec(),
-                        topics[3].as_ref().to_vec(),
-                        vec![],
-                    ),
-                    5 | _ => (
-                        topics[0].as_ref().to_vec(),
-                        topics[1].as_ref().to_vec(),
-                        topics[2].as_ref().to_vec(),
-                        topics[3].as_ref().to_vec(),
-                        topics[4].as_ref().to_vec(),
-                    ),
-                };
-
-
-                let block_raw_event = RawEvent {
-                    block_hash: block_hash.as_bytes().to_vec(),
-                    block_number: block_number as u64,
-                    block_time: 0,
-                    extrinsic_hash: extrinsic_hash.as_bytes().to_vec(),
+                let event_desc = EventDescribe {
                     data: event.bytes().to_vec(),
                     index: event.index(),
-                    topic0,
-                    topic1,
-                    topic2,
-                    topic3,
-                    topic4,
+                    topics: event
+                        .topics()
+                        .iter()
+                        .map(|h| h.as_bytes().to_vec())
+                        .collect::<Vec<_>>(),
                     phase: match event.phase() {
                         Phase::Initialization => EventPhase::Initialization,
                         Phase::ApplyExtrinsic(val) => EventPhase::ApplyExtrinsic(val),
@@ -183,50 +149,111 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
                     },
                     pallet_name: event.pallet_name().to_string(),
                     pallet_index: event.pallet_index(),
+                    root_bytes: root_event_data.to_vec(),
+                    extrinsic_hash: extrinsic_hash.as_bytes().to_vec(),
                 };
-                block_raw_events.push(block_raw_event);
 
-           
+                events_desc.push(event_desc);
 
-                let root_event = event.as_root_event::<polkadot::Event>()?;
-                pallet_event_handle.handle(&root_event)?;
-                match root_event {
-                    polkadot::Event::Balances(balance_event) => match balance_event {
-                        polkadot::balances::Event::Transfer { from, to, amount } => {
-                            writable_extrinsic_events.push(
-                                crate::types::ExtrinsicEventDescribe::Transfer(
-                                    crate::types::pallet::balance::event::Transfer {
-                                        from: from.0,
-                                        to: to.0,
-                                        amount,
-                                        success: if extrinsic_success.is_some() {
-                                            true
-                                        } else {
-                                            false
-                                        }, // TODO streaming with final event
-                                    },
-                                ),
-                            );
-                        }
-                        polkadot::balances::Event::Withdraw { who, amount } => {
-                            writable_extrinsic_events.push(
-                                crate::types::ExtrinsicEventDescribe::Withdraw(
-                                    crate::types::pallet::balance::event::Withdraw {
-                                        who: who.0,
-                                        amount: amount,
-                                        success: if extrinsic_success.is_some() {
-                                            true
-                                        } else {
-                                            false
-                                        },
-                                    },
-                                ),
-                            );
-                        }
-                        _ => {}
-                    },
-                    _ => {}
-                }
+                // let (topic0, topic1, topic2, topic3, topic4) = match topics.len() {
+                //     0 => (vec![], vec![], vec![], vec![], vec![]),
+                //     1 => (topics[0].as_ref().to_vec(), vec![], vec![], vec![], vec![]),
+                //     2 => (
+                //         topics[0].as_ref().to_vec(),
+                //         topics[1].as_ref().to_vec(),
+                //         vec![],
+                //         vec![],
+                //         vec![],
+                //     ),
+                //     3 => (
+                //         topics[0].as_ref().to_vec(),
+                //         topics[1].as_ref().to_vec(),
+                //         topics[2].as_ref().to_vec(),
+                //         vec![],
+                //         vec![],
+                //     ),
+
+                //     4 => (
+                //         topics[0].as_ref().to_vec(),
+                //         topics[1].as_ref().to_vec(),
+                //         topics[2].as_ref().to_vec(),
+                //         topics[3].as_ref().to_vec(),
+                //         vec![],
+                //     ),
+                //     5 | _ => (
+                //         topics[0].as_ref().to_vec(),
+                //         topics[1].as_ref().to_vec(),
+                //         topics[2].as_ref().to_vec(),
+                //         topics[3].as_ref().to_vec(),
+                //         topics[4].as_ref().to_vec(),
+                //     ),
+                // };
+
+                // let block_raw_event = RawEvent {
+                //     block_hash: block_hash.as_bytes().to_vec(),
+                //     block_number: block_number as u64,
+                //     block_time: 0,
+                //     extrinsic_hash: extrinsic_hash.as_bytes().to_vec(),
+                //     data: event.bytes().to_vec(),
+                //     index: event.index(),
+                //     topic0,
+                //     topic1,
+                //     topic2,
+                //     topic3,
+                //     topic4,
+                //     phase: match event.phase() {
+                //         Phase::Initialization => EventPhase::Initialization,
+                //         Phase::ApplyExtrinsic(val) => EventPhase::ApplyExtrinsic(val),
+                //         Phase::Finalization => EventPhase::Finalization,
+                //     },
+                //     pallet_name: event.pallet_name().to_string(),
+                //     pallet_index: event.pallet_index(),
+                // };
+                // block_raw_events.push(block_raw_event);
+
+                // let root_event = event.as_root_event::<polkadot::Event>()?;
+
+                // let mut data = root_event.encode();
+
+                // let event = polkadot::Event::decode(&mut data.as_ref()).unwrap();
+                // pallet_event_handle.handle(&root_event)?;
+                // match root_event {
+                //     polkadot::Event::Balances(balance_event) => match balance_event {
+                //         polkadot::balances::Event::Transfer { from, to, amount } => {
+                //             writable_extrinsic_events.push(
+                //                 crate::types::ExtrinsicEventDescribe::Transfer(
+                //                     crate::types::pallet::balance::event::Transfer {
+                //                         from: from.0,
+                //                         to: to.0,
+                //                         amount,
+                //                         success: if extrinsic_success.is_some() {
+                //                             true
+                //                         } else {
+                //                             false
+                //                         }, // TODO streaming with final event
+                //                     },
+                //                 ),
+                //             );
+                //         }
+                //         polkadot::balances::Event::Withdraw { who, amount } => {
+                //             writable_extrinsic_events.push(
+                //                 crate::types::ExtrinsicEventDescribe::Withdraw(
+                //                     crate::types::pallet::balance::event::Withdraw {
+                //                         who: who.0,
+                //                         amount: amount,
+                //                         success: if extrinsic_success.is_some() {
+                //                             true
+                //                         } else {
+                //                             false
+                //                         },
+                //                     },
+                //                 ),
+                //             );
+                //         }
+                //         _ => {}
+                //     },
+                //     _ => {}
+                // }
             }
 
             let extrinsic_index = ext.index();
@@ -239,14 +266,15 @@ impl BlockHandler<PolkadotConfig, OnlineClient<PolkadotConfig>>
                 pallet_index: extrinsic_pallet_index,
                 pallet_name: extrinsic_pallet_name,
                 hash: extrinsic_hash.as_bytes().to_vec(),
-                events: writable_extrinsic_events,
+                root_call_bytes: vec![], // FIXME: add it.
+                events: events_desc,
             })
         }
 
         Ok(BlockDescribe {
             header: block_header_desc,
             extrinsics: block_extrinsics_desc,
-            raw_events: block_raw_events,
+            // raw_events: block_raw_events,
         })
     }
 }

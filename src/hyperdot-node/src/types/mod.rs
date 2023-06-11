@@ -28,7 +28,6 @@ pub enum EventPhase {
     Initialization,
 }
 
-
 impl EventPhase {
     pub fn to_string(&self) -> String {
         match *self {
@@ -55,8 +54,8 @@ pub struct RawEvent {
     pub topic3: Vec<u8>,
     pub topic4: Vec<u8>,
     pub phase: EventPhase,
-    pub pallet_name: String,    
-    pub pallet_index: u8,   
+    pub pallet_name: String,
+    pub pallet_index: u8,
 }
 
 impl std::fmt::Display for RawEvent {
@@ -94,7 +93,6 @@ impl std::fmt::Display for RawEvent {
     }
 }
 
-
 use pallet::balance::event::Transfer;
 use pallet::balance::event::Withdraw;
 use pallet::system::event::ExtrinsicFailed;
@@ -108,6 +106,26 @@ pub enum ExtrinsicEventDescribe {
     ExtrinsicFailed(ExtrinsicFailed),
 }
 
+/// Raw event.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToParams)]
+pub struct EventDescribe {
+    /// Unindexed data containing further information on the event
+    pub data: Vec<u8>,
+    /// What index is this event in the stored events for this block.
+    pub index: u32,
+    /// The hash of topics.
+    pub topics: Vec<Vec<u8>>,
+    /// The phase of event.
+    pub phase: EventPhase,
+    /// The pallet name of event.
+    pub pallet_name: String,
+    /// The pallet index of event.
+    pub pallet_index: u8,
+    pub root_bytes: Vec<u8>,
+    /// The hash of extrinsic.
+    pub extrinsic_hash: Vec<u8>,
+}
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExtrinsicDescribe {
     /// The index of the extrinsic in the block.
@@ -118,7 +136,12 @@ pub struct ExtrinsicDescribe {
     pub pallet_name: String,
     /// The hash of extrinsic.
     pub hash: Vec<u8>,
-    pub events: Vec<ExtrinsicEventDescribe>,
+
+    /// The root call bytes of extrinsic.
+    pub root_call_bytes: Vec<u8>,
+
+    /// pub events: Vec<ExtrinsicEventDescribe>,
+    pub events: Vec<EventDescribe>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -126,10 +149,13 @@ pub struct BlockDescribe {
     pub header: BlockHeaderDescribe,
     /// The decoded extrinsics record key of extrinsic in block.
     pub extrinsics: Vec<ExtrinsicDescribe>,
-    /// The raw events record all evnets of block and they are 
-    /// maybe scattered in multiple extrinics in block.
-    pub raw_events: Vec<RawEvent>,
 }
+
+// header + extrinsics
+// extrinsics -> events
+//  events
+//      per event -> EventDetails + RootEvent Raw data
+//  per extrinsics -> ExtrinsicDetails + RootCall raw data
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, ToParams)]
 pub struct WriteBlockRequest {
@@ -138,7 +164,10 @@ pub struct WriteBlockRequest {
 
 impl WriteBlockRequest {
     pub fn block_numbers(&self) -> Vec<u64> {
-        self.blocks.iter().map(|block| block.header.block_number).collect::<Vec<_>>()
+        self.blocks
+            .iter()
+            .map(|block| block.header.block_number)
+            .collect::<Vec<_>>()
     }
 }
 
@@ -147,8 +176,8 @@ pub struct WriteBlockResponse {}
 
 #[cfg(test)]
 mod tests {
-    use super::RawEvent;
     use super::EventPhase;
+    use super::RawEvent;
 
     #[test]
     fn event_encode_deode() {
