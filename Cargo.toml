@@ -6,6 +6,7 @@ authors = [
 ]
 
 [workspace.dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", features=["std/serde"]}
 jsonrpsee = { version = "0.18.2", features = ["full"]}
 serde = { version = "1.0" }
 serde_json = { version = "1.0" }
@@ -16,7 +17,6 @@ futures = { version = "0.3" }
 lazy_static = { version = "1.4.0" }
 tracing = { version = "0.1.34" }
 subxt = { version = "0.29" }
-
 [workspace]
 members = [
     "src/hyperdot-common/rpc",
