@@ -16,6 +16,13 @@ tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
 subxt = { workspace = true }
 
 [[bin]]
+name = "hyperdot-apiserver"
+path = "apiserver/main.rs"
+doctest = false
+test = false
+
+
+[[bin]]
 name = "hyperdot-storage"
 path = "storage/main.rs"
 doctest = false

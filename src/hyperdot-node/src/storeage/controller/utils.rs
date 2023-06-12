@@ -58,16 +58,16 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::runtime_api::polkadot;
-use crate::runtime_api::Naming;
+use crate::runtime_api::GetName;
 
 struct RuntimeEventHandle<E>
-where E: RootEvent + Naming
+where E: RootEvent + GetName
 {
     callbacks: HashMap<String, Box<dyn Fn(E) -> Pin<Box<dyn Future<Output = anyhow::Result<()>>>>>>,
 }
 
 impl<E> Default for RuntimeEventHandle<E>
-where E: RootEvent + Naming
+where E: RootEvent + GetName
 {
     fn default() -> Self {
         Self {
@@ -77,17 +77,17 @@ where E: RootEvent + Naming
 }
 
 impl<E> RuntimeEventHandle<E>
-where E: RootEvent + Naming
+where E: RootEvent + GetName
 {
     fn register<F>(&mut self, callback_name: &str, callback: F)
     where F: Fn(E) -> Pin<Box<dyn Future<Output = anyhow::Result<()>>>> + 'static {
         todo!()
     }
 
-    async fn handle(&mut self, event: E) -> anyhow::Result<()>{
-        let name = event.what();
+    async fn handle(&mut self, event: E) -> anyhow::Result<()> {
+        let (pallet_name, name) = event.name();
         if !self.callbacks.contains_key(&name) {
-            return Ok(())
+            return Ok(());
         }
 
         let handle = self.callbacks.get_mut(&name).unwrap();

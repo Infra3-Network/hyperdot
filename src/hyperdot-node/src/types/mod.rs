@@ -47,6 +47,7 @@ pub struct RawEvent {
     pub extrinsic_hash: Vec<u8>,
     /// Unindexed data containing further information on the event
     pub data: Vec<u8>,
+    /// What index is this event in the stored events for this block.
     pub index: u32,
     pub topic0: Vec<u8>,
     pub topic1: Vec<u8>,

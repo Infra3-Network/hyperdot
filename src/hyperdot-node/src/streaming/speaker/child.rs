@@ -1,6 +1,6 @@
 use super::ops::SpeakerOps;
-use crate::storeage::jsonrpc::client::JsonRpcClientParams;
-use crate::storeage::jsonrpc::client::JsonRpcClinet;
+use crate::storeage::client::JsonRpcClientParams;
+use crate::storeage::client::JsonRpcClinet;
 use crate::types::WriteBlockRequest;
 use crate::types::WriteBlockResponse;
 
@@ -16,12 +16,11 @@ pub struct SpeakerJsonRpcChild {
     remote_server_clinet: JsonRpcClinet,
 }
 
-
 pub struct OpenSpeakerJsonRpcChildParams {
     /// Only either http or https, default is http
-    pub scheme: Option<String>, 
+    pub scheme: Option<String>,
     /// The jsonrpc server host.
-    pub host: String, 
+    pub host: String,
     /// The jsonrpc server port.
     pub port: Option<u16>,
 }
@@ -38,14 +37,24 @@ impl Default for OpenSpeakerJsonRpcChildParams {
 
 impl OpenSpeakerJsonRpcChildParams {
     pub fn to_url(&self) -> String {
-        format!("{}://{}:{}", self.scheme.as_ref().map_or("http", |s| s.as_str()), self.host, self.port.map_or(15722, |p| p))
+        format!(
+            "{}://{}:{}",
+            self.scheme.as_ref().map_or("http", |s| s.as_str()),
+            self.host,
+            self.port.map_or(15722, |p| p)
+        )
     }
 }
 
 impl SpeakerJsonRpcChild {
     /// Opens a child speaker for JSON-RPC communication.
     pub fn open(params: OpenSpeakerJsonRpcChildParams) -> anyhow::Result<Self> {
-        let url = format!("{}://{}:{}", params.scheme.as_ref().map_or("http", |s| s.as_str()), params.host, params.port.map_or(15722, |p| p));
+        let url = format!(
+            "{}://{}:{}",
+            params.scheme.as_ref().map_or("http", |s| s.as_str()),
+            params.host,
+            params.port.map_or(15722, |p| p)
+        );
         let client = JsonRpcClinet::new(&url, JsonRpcClientParams::default())?;
         Ok(Self {
             name: String::from("speaker_jsonrpc_child"),
