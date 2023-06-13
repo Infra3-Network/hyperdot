@@ -6,7 +6,7 @@ use subxt::events::Phase;
 use subxt::Config;
 
 use crate::runtime_api::polkadot::Event;
-use crate::types::EventPhase;
+// use crate::types::EventPhase;
 
 // #[derive(Default)]
 // struct ParsedEventPair {

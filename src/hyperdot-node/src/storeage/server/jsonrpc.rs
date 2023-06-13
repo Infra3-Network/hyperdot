@@ -1,119 +1,110 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use anyhow::Result as AnyResult;
 use jsonrpsee::server::ServerBuilder;
 use jsonrpsee::server::ServerHandle;
 use jsonrpsee::types::ResponsePayload;
+use jsonrpsee::types::error::ErrorObject;
+use jsonrpsee::types::error::ErrorCode;
+
 use jsonrpsee::RpcModule;
 use tracing::info;
+use tokio::sync::RwLock;
 
+use super::ServerArgs;
 use crate::storeage::StorageController;
 use crate::storeage::StorageControllerParams;
-use crate::types::WriteBlockRequest;
-use crate::types::WriteBlockResponse;
-
-pub struct JsonRpcServerParams {
-    /// The server listen address.
-    pub address: String,
-    /// The specific chain.
-    pub chain: String,
-    /// The specific chain enabled storage controller config urls.
-    pub storages: Vec<String>,
-}
-
-// impl JsonRpcServerParams {
-//     pub fn dev() -> Self {
-//         Self {
-//             address: String::from("127.0.0.1:15722"),
-//             stores: vec![
-//                 "postgres://hyperdot:5432?user=postgres&password=postgres&dbname=polkadot"
-//                     .to_string(),
-//             ],
-//         }
-//     }
-// }
+use crate::types::rpc::WriteBlockRequest;
+use crate::types::rpc::WriteBlockResponse;
 
 #[derive(Clone)]
 pub struct JsonRpcServerContext {
-    storage_controller: Arc<StorageController>, // TODO: make as weak
+    controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>, // TODO: make as weak
 }
 
 pub struct JsonRpcServer {
-    storage_controller: Arc<StorageController>,
-    params: JsonRpcServerParams,
+    args: ServerArgs,
+    controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>, 
+    handle: Option<ServerHandle>,   
+
 }
 
-pub struct JsonRpcServerHandle {
-    handle: ServerHandle,
-}
-
-impl JsonRpcServerHandle {
-    pub async fn stopped(self) -> AnyResult<()> {
-        self.handle.stopped().await;
-        Ok(())
-    }
-}
 
 impl JsonRpcServer {
-    pub async fn new(params: JsonRpcServerParams) -> AnyResult<Self> {
-        let controller = StorageController::new(StorageControllerParams {
-            chain: params.chain.clone(),
-            storages: params.storages.clone(),
-        })
-        .await?;
+    pub async fn new(args: ServerArgs) -> anyhow::Result<Self> {
+        let mut controllers = HashMap::new();
+        for chain_arg in args.chains.iter() {
+            let controller = StorageController::new(StorageControllerParams {
+                chain: chain_arg.chain.clone(),
+                storages: chain_arg.storage_urls.clone(),
+            })
+            .await?;
+            let _ = controllers.insert(chain_arg.chain.clone(), Arc::new(controller));
+        }
+       
 
         Ok(Self {
-            storage_controller: Arc::new(controller),
-            params,
+            args,
+            controllers: Arc::new(RwLock::new(controllers)),
+            handle: None,
         })
     }
 
-    pub async fn start(&self) -> AnyResult<JsonRpcServerHandle> {
-        let addr = self.params.address.parse::<SocketAddr>()?;
+    pub async fn start(&mut self) -> anyhow::Result<()> {
+        if self.handle.is_some() {
+            return Err(anyhow::anyhow!("server alreay started"));
+        }   
+        let addr = self.args.jsonrpc_server_address.parse::<SocketAddr>()?;
         let server = ServerBuilder::new().build(addr).await?;
         let ctx = JsonRpcServerContext {
-            storage_controller: self.storage_controller.clone(),
+            controllers: self.controllers.clone(),
         };
         let rpc_module = register_methods(ctx)?;
         info!(
-            "🌗 chain {} json-rpc server listening at {}",
-            self.params.chain, addr
+            "🌗 storage json-rpc server listening at {}",
+            addr
         );
-        let handle = server.start(rpc_module)?;
+        self.handle = Some(server.start(rpc_module)?);
 
-        Ok(JsonRpcServerHandle { handle })
+        Ok(())
     }
+
+    pub async fn stopped(self) -> anyhow::Result<()> {
+        if let Some(handle) = self.handle {
+            handle.stopped().await;
+        }
+        Ok(())
+    }
+
 }
 
 pub fn register_methods(ctx: JsonRpcServerContext) -> AnyResult<RpcModule<JsonRpcServerContext>> {
     let mut rpc_module = RpcModule::new(ctx);
-    info!("🍾 register write_block method");
-    // rpc_module.register_async_method("write_block_header", |params, ctx| async move {
-    //     let req = match params.parse::<BlockHeaderDescribe>() {
-    //         Err(err) => return ResponsePayload::Error(err),
-    //         Ok(req) => req,
-    //     };
-
-    //     info!("🌍 write block #{}", req.block_number);
-    //     match ctx.write_block_header(&req).await {
-    //         Err(err) => {
-    //             tracing::error!("⚠️ write block #{} error: {}", req.block_number, err);
-    //             return ResponsePayload::Error(ErrorObject::from(ErrorCode::InternalError));
-    //         }
-    //         Ok(_) => {}
-    //     }
-    //     ResponsePayload::result(WriteBlockHeaderResponse {})
-    // })?;
-    let _ = rpc_module.register_async_method("write_block", |params, ctx| async move {
-        let req = match params.parse::<WriteBlockRequest>() {
+    info!("🍾 register /polkadot/write_block method");
+   
+    let _ = rpc_module.register_async_method("/polkadot/write_block", |params, ctx| async move {
+        let req = match params.parse::<WriteBlockRequest::<crate::types::polkadot::Block>>() {
             Err(err) => return ResponsePayload::Error(err),
             Ok(req) => req,
         };
-        let block_numbers = req.block_numbers();
-        info!("🌍 json-rpc server: recv blocks #{:?}", block_numbers);
-        ctx.storage_controller
-            .write_block(&req.blocks)
+        // let block_numbers = req.block_numbers();
+        // info!("🌍 json-rpc server: recv blocks #{:?}", block_numbers);
+        let controller = {
+            let controllers = ctx.controllers.read().await;
+            match controllers.get("polkadot") {
+                None => return ResponsePayload::Error(ErrorObject::owned::<()>(
+                    ErrorCode::InternalError.code(),
+                    "polkadot stroage controller not found",
+                    None,
+                )),
+                Some(controller) => controller.clone(),
+            }
+        };
+       
+        controller
+            .write_polkadot_block(&req)
             .await
             .unwrap();
         // match ctx.write_block_header(&req).await {

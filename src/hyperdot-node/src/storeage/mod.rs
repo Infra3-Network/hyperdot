@@ -2,6 +2,7 @@ pub mod client;
 mod controller;
 pub mod server;
 
+pub use server::ServerArgs;
 pub use controller::StorageController;
 pub use controller::StorageControllerParams;
 

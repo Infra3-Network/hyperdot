@@ -1,28 +1,27 @@
-use std::sync::Arc;
 use std::any::Any;
+use std::sync::Arc;
 
 use anyhow::Result as AnyResult;
 use bit_vec::BitVec;
-
 use tokio_postgres::Error;
 use tokio_postgres::NoTls;
 use tracing::debug;
 use tracing::info;
 
-use crate::types::BlockDescribe;
+// use crate::types::BlockDescribe;
 
 #[async_trait::async_trait]
-pub trait BlockStorageOps
-where Self: Send + Sync {
-    async fn transform_block(&self, blocks: &[BlockDescribe]) -> anyhow::Result<Vec<Box<dyn Any + Send + Sync>>>;
+pub trait BlockStorageOps: Send + Sync {
+    async fn transform_block(
+        &self,
+        blocks: &[BlockDescribe],
+    ) -> anyhow::Result<Vec<Box<dyn Any + Send + Sync>>>;
 
     async fn write_block(&self, blocks: Vec<Box<dyn Any + Send + Sync>>) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
-pub trait StorageOps: Send + Sync + BlockStorageOps {
-}
-
+pub trait StorageOps: Send + Sync + BlockStorageOps {}
 
 // #[derive(Clone)]
 // pub struct StorageOpsParams {

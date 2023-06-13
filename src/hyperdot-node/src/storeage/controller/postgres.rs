@@ -1,27 +1,29 @@
-use std::any::Any;
+
 
 use anyhow::anyhow;
-use futures::stream;
-use futures::stream::FuturesOrdered;
-use futures::TryStreamExt;
+
+
+
 use rust_decimal::prelude::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use subxt::ext::codec::Decode;
 use tokio::task::JoinHandle;
 use tokio_postgres::Client;
-use tokio_postgres::Error;
-use tokio_postgres::NoTls;
-use tokio_postgres::Statement;
 
-use super::ops::BlockStorageOps;
-use super::ops::StorageOps;
+use tokio_postgres::NoTls;
+
+
+
+
 use super::utils::FiveTopics;
 use crate::runtime_api::polkadot;
 use crate::runtime_api::GetName;
-use crate::types::BlockDescribe;
-use crate::types::BlockHeaderDescribe;
-use crate::types::EventDescribe;
-use crate::types::ExtrinsicEventDescribe;
+// use crate::types::BlockDescribe;
+// use crate::types::BlockHeaderDescribe;
+// use crate::types::EventDescribe;
+use crate::types::rpc::WriteBlockRequest;
+
+// use crate::types::ExtrinsicEventDescribe;
 
 #[derive(Debug)]
 pub struct PostgresStorageParams {
@@ -44,7 +46,7 @@ impl PostgresStorageParams {
 
 pub struct PostgresStorage {
     params: PostgresStorageParams,
-    pg_client: Client,
+    pub pg_client: Client,
     pg_conn_handle: JoinHandle<anyhow::Result<()>>,
 }
 
@@ -82,15 +84,15 @@ impl PostgresStorage {
     }
 }
 
-pub(crate) struct PolkadotPostgresStorageImpl {
-    pub(crate) base: PostgresStorage,
+pub struct PolkadotPostgresStorageImpl {
+    pub base: PostgresStorage,
 }
 
 impl PolkadotPostgresStorageImpl {
     async fn write_events(
         &self,
-        header: &BlockHeaderDescribe,
-        events: &mut [EventDescribe],
+        header: &crate::types::polkadot::BlockHeader,
+        events: &mut [crate::types::polkadot::EventDescribe],
     ) -> anyhow::Result<()> {
         let block_number = header.block_number as i64;
         let block_hash = &header.block_hash;
@@ -308,25 +310,11 @@ impl PolkadotPostgresStorageImpl {
     }
 }
 
-#[async_trait::async_trait]
-impl BlockStorageOps for PolkadotPostgresStorageImpl {
-    async fn transform_block(
-        &self,
-        blocks: &[BlockDescribe],
-    ) -> anyhow::Result<Vec<Box<dyn Any + Send + Sync>>> {
-        let mut results = vec![];
-        for block in blocks.iter() {
-            let anyed: Box<dyn Any + Send + Sync> = Box::new(block.clone());
-            results.push(anyed);
-        }
-
-        Ok(results)
-    }
-
-    async fn write_block(&self, blocks: Vec<Box<dyn Any + Send + Sync>>) -> anyhow::Result<()> {
-        let mut blocks = blocks
+impl PolkadotPostgresStorageImpl {
+    pub async fn write_block(&self, req: WriteBlockRequest<crate::types::polkadot::Block>) -> anyhow::Result<()> {
+        let mut blocks = req.blocks
             .into_iter()
-            .map(|b| b.downcast::<BlockDescribe>().unwrap())
+            .map(|b| b.clone())
             .collect::<Vec<_>>();
         tracing::info!(
             "🐘 PostgresStorage: writing blocks #{:?}",
@@ -382,5 +370,3 @@ impl BlockStorageOps for PolkadotPostgresStorageImpl {
     }
 }
 
-#[async_trait::async_trait]
-impl StorageOps for PolkadotPostgresStorageImpl {}

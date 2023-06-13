@@ -9,7 +9,9 @@ use tokio::task::JoinHandle;
 
 use super::Syncer;
 use crate::streaming::speaker::SpeakerController;
-use crate::types::WriteBlockRequest;
+use crate::types::polkadot;
+use crate::types::rpc::WriteBlockRequest;
+// use crate::types::WriteBlockRequest;
 // use crate::speaker::SpeakerController;
 
 // pub trait StreamFilter {
@@ -124,17 +126,18 @@ impl BlockStreaming<PolkadotConfig> {
                     block_desc.header.block_number
                 );
 
-                let request = WriteBlockRequest {
+                let request = WriteBlockRequest::<polkadot::Block> {
+                    chain: "polkadot".to_string(),
                     blocks: vec![block_desc],
                 };
 
-                let block_numbers = request.block_numbers();
-                match self.speaker.write_block(request).await {
+                // let block_numbers = request.block_numbers();
+                match self.speaker.write_block::<polkadot::Block>(request).await {
                     Err(err) => {
                         tracing::error!("write block failed"); // TODO: given more error info
                     }
                     Ok(_) => {
-                        tracing::info!("🔚 write block {:?} success", block_numbers); // TODO: given more info
+                        tracing::info!("🔚 write block success"); // TODO: given more info
                     }
                 }
             }

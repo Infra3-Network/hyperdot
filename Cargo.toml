@@ -17,6 +17,7 @@ futures = { version = "0.3" }
 lazy_static = { version = "1.4.0" }
 tracing = { version = "0.1.34" }
 subxt = { version = "0.29" }
+clap = { version = "4.3" }
 [workspace]
 members = [
     "src/hyperdot-common/rpc",

@@ -3,16 +3,16 @@
 use url::Url;
 use anyhow::anyhow;
 
-use super::SpeakerChild;
-use super::SpeakerJsonRpcChild;
+// use super::SpeakerChild;
+use super::child::SpeakerJsonRpcChild;
 
 /// Parse and create SpeakerChilds.
-pub async fn parse_child(urls: &[String]) -> anyhow::Result<Vec<Box<dyn SpeakerChild>>> {
+pub async fn parse_childs(urls: &[String]) -> anyhow::Result<Vec<SpeakerJsonRpcChild>> {
 	let mut childs = vec![];
 	 for u in urls.iter() {
         let url = Url::parse(u)?;
-        let child: Box<dyn SpeakerChild> = match url.scheme() {
-            "jsonrpc" => Box::new(internal_parse_jsonrpc_child(&url)?),
+        let child = match url.scheme() {
+            "jsonrpc" => internal_parse_jsonrpc_child(&url)?,
             _ => return Err(anyhow!("unsupport scheme: {}", url.scheme())),
         };
         childs.push(child);

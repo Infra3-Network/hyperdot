@@ -1,0 +1,12 @@
+{
+	"jsonrpc_server_address": "127.0.0.1:15722",
+	"http_server_address": "127.0.0.1:3000",
+	"chains": [
+		{
+			"chain": "polkadot",
+			"storage_urls": [
+				"postgres://hyperdot:5432?user=postgres&password=postgres&dbname=polkadot"
+			]
+		}
+	]
+}

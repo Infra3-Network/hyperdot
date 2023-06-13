@@ -1,20 +1,15 @@
-use super::ops::SpeakerOps;
+
 use crate::storeage::client::JsonRpcClientParams;
 use crate::storeage::client::JsonRpcClinet;
-use crate::types::WriteBlockRequest;
-use crate::types::WriteBlockResponse;
+use crate::types::rpc::WriteBlockRequest;
+use crate::types::rpc::WriteBlockResponse;
 
-/// Represents a child speaker that implements the `SpeakerOps` trait.
-pub trait SpeakerChild: Send + Sync + SpeakerOps {
-    /// Get the speaker child name that deduplicating for controller.
-    fn name(&self) -> String;
-}
+// /// Represents a child speaker that implements the `SpeakerOps` trait.
+// pub trait SpeakerChild: Send + Sync + SpeakerOps {
+//     /// Get the speaker child name that deduplicating for controller.
+//     fn name(&self) -> String;
+// }
 
-/// Represents a child speaker for JSON-RPC communication.
-pub struct SpeakerJsonRpcChild {
-    name: String,
-    remote_server_clinet: JsonRpcClinet,
-}
 
 pub struct OpenSpeakerJsonRpcChildParams {
     /// Only either http or https, default is http
@@ -25,16 +20,6 @@ pub struct OpenSpeakerJsonRpcChildParams {
     pub port: Option<u16>,
 }
 
-impl Default for OpenSpeakerJsonRpcChildParams {
-    fn default() -> Self {
-        Self {
-            scheme: Some("http".to_string()),
-            host: "127.0.0.1".to_string(),
-            port: Some(15726),
-        }
-    }
-}
-
 impl OpenSpeakerJsonRpcChildParams {
     pub fn to_url(&self) -> String {
         format!(
@@ -43,6 +28,23 @@ impl OpenSpeakerJsonRpcChildParams {
             self.host,
             self.port.map_or(15722, |p| p)
         )
+    }
+}
+
+/// Represents a child speaker for JSON-RPC communication.
+pub struct SpeakerJsonRpcChild {
+    name: String,
+    remote_server_clinet: JsonRpcClinet,
+}
+
+
+impl Default for OpenSpeakerJsonRpcChildParams {
+    fn default() -> Self {
+        Self {
+            scheme: Some("http".to_string()),
+            host: "127.0.0.1".to_string(),
+            port: Some(15726),
+        }
     }
 }
 
@@ -61,17 +63,27 @@ impl SpeakerJsonRpcChild {
             remote_server_clinet: client,
         })
     }
-}
 
-#[async_trait::async_trait]
-impl SpeakerOps for SpeakerJsonRpcChild {
-    async fn write_block(&self, request: WriteBlockRequest) -> anyhow::Result<WriteBlockResponse> {
+    pub async fn write_block<T>(&self, request: WriteBlockRequest<T>) -> anyhow::Result<WriteBlockResponse> 
+    where T: Clone + Send + serde::Serialize {
         self.remote_server_clinet.write_block(request).await
     }
-}
 
-impl SpeakerChild for SpeakerJsonRpcChild {
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         self.name.clone()
     }
 }
+
+// #[async_trait::async_trait]
+// impl SpeakerOps for SpeakerJsonRpcChild {
+//     async fn write_block<T>(&self, request: WriteBlockRequest<T>) -> anyhow::Result<WriteBlockResponse> 
+//     where T: Clone + serde::Serialize{
+//         self.remote_server_clinet.polkadot_write_block(request).await
+//     }
+// }
+
+// impl SpeakerChild for SpeakerJsonRpcChild {
+//     fn name(&self) -> String {
+//         self.name.clone()
+//     }
+// }

@@ -1,23 +1,24 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
-use tokio::sync::RwLock;
-use url::Url;
 
-use super::SpeakerChild;
-use super::SpeakerOps;
-use crate::types::WriteBlockRequest;
-use crate::types::WriteBlockResponse;
+use tokio::sync::RwLock;
+
+use super::child::SpeakerJsonRpcChild;
+
+// use super::SpeakerChild;
+// use super::SpeakerOps;
+use crate::types::rpc::WriteBlockRequest;
+use crate::types::rpc::WriteBlockResponse;
 
 pub struct SpeakerChildHandle {}
 
 pub struct SpeakerController {
-    childs: Arc<RwLock<Vec<Box<dyn SpeakerChild>>>>,
+    childs: Arc<RwLock<Vec<SpeakerJsonRpcChild>>>,
 }
 
 impl SpeakerController {
     pub async fn new(urls: &[String]) -> anyhow::Result<Self> {
-        let childs = super::url::parse_child(urls).await?;
+        let childs = super::url::parse_childs(urls).await?;
         Ok(Self {
             childs: Arc::new(RwLock::new(childs)),
         })
@@ -27,8 +28,8 @@ impl SpeakerController {
     pub async fn add_cild(
         &self,
         name: &str,
-        child: Box<dyn SpeakerChild>,
-    ) -> Option<Box<dyn SpeakerChild>> {
+        child: SpeakerJsonRpcChild,
+    ) -> Option<SpeakerJsonRpcChild> {
         {
             let rl = self.childs.read().await;
             if rl.iter().find(|c| c.name().as_str() == name).is_some() {
@@ -43,7 +44,7 @@ impl SpeakerController {
     }
 
     /// remove child into controller. `None` returned if given name associated child not exists controller.
-    pub async fn remove_child(&self, name: &str) -> Option<Box<dyn SpeakerChild>> {
+    pub async fn remove_child(&self, name: &str) -> Option<SpeakerJsonRpcChild> {
         let index = {
             let rl = self.childs.read().await;
             match rl.iter().position(|c| c.name().as_str() == name) {
@@ -56,10 +57,13 @@ impl SpeakerController {
         Some(wl.swap_remove(index))
     }
 
-    pub async fn write_block(
+    pub async fn write_block<T>(
         &self,
-        request: WriteBlockRequest,
-    ) -> anyhow::Result<WriteBlockResponse> {
+        request: WriteBlockRequest<T>,
+    ) -> anyhow::Result<WriteBlockResponse> 
+    where
+        T: Clone + Send + serde::Serialize
+    {
         let rl = self.childs.read().await;
         for child in rl.iter() {
             child.write_block(request.clone()).await?;

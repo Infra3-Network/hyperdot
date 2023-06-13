@@ -1,9 +1,12 @@
+use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Write;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use url::Url;
 
-use super::ops::StorageOps;
+
 use super::postgres::PolkadotPostgresStorageImpl;
 use super::postgres::PostgresStorage;
 use super::postgres::PostgresStorageParams;
@@ -14,8 +17,8 @@ use crate::SupportChain;
 pub async fn parse_storage_ops(
     chain: &str,
     urls: &[String],
-) -> anyhow::Result<Vec<Box<dyn StorageOps>>> {
-    let mut stores = vec![];
+) -> anyhow::Result<HashMap<String, Arc<dyn Any + Send + Sync>>> {
+    let mut ops = HashMap::new();
     let mut info = String::new();
     for u in urls.iter() {
         let support_chain = SupportChain::from(chain);
@@ -25,24 +28,24 @@ pub async fn parse_storage_ops(
             support_chain.to_string()
         )?;
         let url = Url::parse(u)?;
-        let storage = match url.scheme() {
+        let _storage = match url.scheme() {
             "postgres" => {
                 write!(&mut info, "🐘 postgres storage ")?;
-                internal_parse_postgres(support_chain, &url).await?
+                let ops_vptr = internal_parse_postgres(support_chain, &url).await?;
+                ops.insert("postgres".to_string(), ops_vptr);
             }
             _ => return Err(anyhow!("unsupport scheme: {}", url.scheme())),
         };
-        stores.push(storage);
     }
     write!(&mut info, "]")?;
     tracing::info!("{}", info);
-    Ok(stores)
+    Ok(ops)
 }
 
 async fn internal_parse_postgres(
     chain: SupportChain,
     url: &Url,
-) -> anyhow::Result<Box<dyn StorageOps>> {
+) -> anyhow::Result<Arc<dyn Any + Send + Sync>> {
     // parse host + port
     let host = match url.host_str() {
         None => return Err(anyhow!("🐘 parse postgres url error: missing host")),
@@ -104,7 +107,7 @@ async fn internal_parse_postgres(
         SupportChain::Polkadot => {
             let polkadot_pg_impl = PolkadotPostgresStorageImpl { base };
 
-            Ok(Box::new(polkadot_pg_impl))
+            Ok(Arc::new(polkadot_pg_impl))
         }
         SupportChain::Kusama => unimplemented!(),
     }

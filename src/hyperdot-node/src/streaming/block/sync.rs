@@ -11,7 +11,7 @@ use super::handle::BlockHandleImpl;
 use super::handle::BlockHandler;
 use crate::rpc::JseeRpcClient;
 use crate::rpc::JseeRpcClientParams;
-use crate::types::BlockDescribe;
+use crate::types::polkadot;
 
 pub struct CachedBody<T, C>
 where
@@ -37,7 +37,7 @@ where T: Config
 
 async fn sync_blocks_fut(
     online: OnlineClient<PolkadotConfig>,
-    tx: UnboundedSender<BlockDescribe>,
+    tx: UnboundedSender<polkadot::Block>,
 ) -> anyhow::Result<()> {
     let mut blocks_sub = online.blocks().subscribe_finalized().await?;
     while let Some(block) = blocks_sub.next().await {
@@ -68,7 +68,7 @@ async fn sync_blocks_fut(
 }
 
 impl Syncer<PolkadotConfig> {
-    pub fn spawn(self, tx: UnboundedSender<BlockDescribe>) -> anyhow::Result<()> {
+    pub fn spawn(self, tx: UnboundedSender<polkadot::Block>) -> anyhow::Result<()> {
         tracing::info!("🔥 spawnning polkadot syncer"); // TODO: add name for syncer
         let online = self.client.get_online();
         tokio::spawn(async move { sync_blocks_fut(online, tx).await });

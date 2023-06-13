@@ -4,7 +4,7 @@ use subxt::events::RootEvent;
 use subxt::events::StaticEvent;
 
 use crate::runtime_api::polkadot;
-use crate::types::RawEvent;
+// use crate::types::RawEvent;
 
 /// The trait hanlde pallet event.
 pub trait PalletEventHandler<E>
