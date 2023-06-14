@@ -1530,6 +1530,7 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "http",
  "hyper",
  "hyperdot-common-macros",
  "jsonrpsee 0.18.2",

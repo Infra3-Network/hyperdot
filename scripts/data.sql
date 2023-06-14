@@ -5,10 +5,10 @@ DROP TABLE withdraw;
 
 CREATE TABLE IF NOT EXISTS block (
     block_number bigint NOT NULL,
-    block_hash BYTEA NOT NULL,
-    parent_hash BYTEA NOT NULL,
-    state_root BYTEA NOT NULL,
-    extrinsics_root BYTEA NOT NULL,
+    block_hash TEXT NOT NULL,
+    parent_hash TEXT NOT NULL,
+    state_root TEXT NOT NULL,
+    extrinsics_root TEXT NOT NULL,
     -- Additional columns for the digest if needed
     -- digest_column_name data_type,
     PRIMARY KEY (block_number)

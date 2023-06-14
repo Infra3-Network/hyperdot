@@ -1,19 +1,10 @@
-
-
 use anyhow::anyhow;
-
-
-
 use rust_decimal::prelude::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use subxt::ext::codec::Decode;
 use tokio::task::JoinHandle;
 use tokio_postgres::Client;
-
 use tokio_postgres::NoTls;
-
-
-
 
 use super::utils::FiveTopics;
 use crate::runtime_api::polkadot;
@@ -311,8 +302,12 @@ impl PolkadotPostgresStorageImpl {
 }
 
 impl PolkadotPostgresStorageImpl {
-    pub async fn write_block(&self, req: WriteBlockRequest<crate::types::polkadot::Block>) -> anyhow::Result<()> {
-        let mut blocks = req.blocks
+    pub async fn write_block(
+        &self,
+        req: WriteBlockRequest<crate::types::polkadot::Block>,
+    ) -> anyhow::Result<()> {
+        let mut blocks = req
+            .blocks
             .into_iter()
             .map(|b| b.clone())
             .collect::<Vec<_>>();
@@ -336,17 +331,19 @@ impl PolkadotPostgresStorageImpl {
 
         for block in blocks.iter_mut() {
             let block_number = block.header.block_number as i64;
-            let block_hash = &block.header.block_hash;
-            let parent_hash = &block.header.parent_hash;
+            let block_hash_hex = format!("0x{}", hex::encode(&block.header.block_hash));
+            let parent_hash_hex = format!("0x{}", hex::encode(&block.header.parent_hash));
+            let state_root_hex = format!("0x{}", hex::encode(&block.header.state_root));
+            let extrinsics_root_hex = format!("0x{}", hex::encode(&block.header.extrinsics_root));
             let rows = self
                 .base
                 .pg_client
                 .execute(upsert_statement, &[
                     &block_number,
-                    block_hash,
-                    parent_hash,
-                    &block.header.state_root,
-                    &block.header.extrinsics_root,
+                    &block_hash_hex,
+                    &parent_hash_hex,
+                    &state_root_hex,
+                    &extrinsics_root_hex,
                 ])
                 .await?;
             // Check if the row count is 1, indicating a successful insert
@@ -369,4 +366,3 @@ impl PolkadotPostgresStorageImpl {
         Ok(())
     }
 }
-
