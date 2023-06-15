@@ -1,5 +1,4 @@
-mod core;
-pub mod model;
+pub mod core;
 pub mod route;
 pub mod server;
 mod v1;

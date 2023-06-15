@@ -1,20 +1,211 @@
 use anyhow::anyhow;
+use anyhow::Context;
 use rust_decimal::prelude::Decimal;
 use rust_decimal::prelude::FromPrimitive;
+use serde::Serialize;
 use subxt::ext::codec::Decode;
 use tokio::task::JoinHandle;
+use tokio_postgres::types::FromSql;
+use tokio_postgres::types::Type;
 use tokio_postgres::Client;
+use tokio_postgres::Column;
 use tokio_postgres::NoTls;
+use tokio_postgres::Row;
 
 use super::utils::FiveTopics;
 use crate::runtime_api::polkadot;
 use crate::runtime_api::GetName;
-// use crate::types::BlockDescribe;
-// use crate::types::BlockHeaderDescribe;
-// use crate::types::EventDescribe;
 use crate::types::rpc::WriteBlockRequest;
 
-// use crate::types::ExtrinsicEventDescribe;
+pub type JSONValue = serde_json::Value;
+
+fn convert_primitive_type<'a, T: FromSql<'a>>(
+    row: &'a Row,
+    column: &Column,
+    column_i: usize,
+    cfn: impl Fn(T) -> Result<JSONValue, anyhow::Error>,
+) -> Result<JSONValue, anyhow::Error> {
+    let raw_val = row
+        .try_get::<_, Option<T>>(column_i)
+        .with_context(|| format!("column_name:{}", column.name()))?;
+    raw_val.map_or(Ok(JSONValue::Null), cfn)
+}
+
+fn convert_array_type<'a, T: FromSql<'a>>(
+    row: &'a Row,
+    column: &Column,
+    column_i: usize,
+    cfn: impl Fn(T) -> Result<JSONValue, anyhow::Error>,
+) -> Result<JSONValue, anyhow::Error> {
+    let raw_val_array = row
+        .try_get::<_, Option<Vec<T>>>(column_i)
+        .with_context(|| format!("column_name:{}", column.name()))?;
+    Ok(match raw_val_array {
+        Some(val_array) => {
+            let mut result = vec![];
+            for val in val_array {
+                result.push(cfn(val)?);
+            }
+            JSONValue::Array(result)
+        }
+        None => JSONValue::Null,
+    })
+}
+
+// For TS_VECTOR convert
+struct StringCollector(String);
+impl FromSql<'_> for StringCollector {
+    fn from_sql(
+        _: &Type,
+        raw: &[u8],
+    ) -> Result<StringCollector, Box<dyn std::error::Error + Sync + Send>> {
+        let result = std::str::from_utf8(raw)?;
+        Ok(StringCollector(result.to_owned()))
+    }
+    fn accepts(_ty: &Type) -> bool {
+        true
+    }
+}
+
+pub fn to_json_value(
+    row: &Row,
+    column: &Column,
+    column_idx: usize,
+) -> Result<JSONValue, anyhow::Error> {
+    let f64_to_json_number = |raw_val: f64| -> Result<JSONValue, anyhow::Error> {
+        let temp =
+            serde_json::Number::from_f64(raw_val.into()).ok_or(anyhow!("invalid json-float"))?;
+        Ok(JSONValue::Number(temp))
+    };
+
+    Ok(match *column.type_() {
+        // for rust-postgres <> postgres type-mappings: https://docs.rs/postgres/latest/postgres/types/trait.FromSql.html#types
+        // for postgres types: https://www.postgresql.org/docs/7.4/datatype.html#DATATYPE-TABLE
+        // single types
+        Type::BOOL => {
+            convert_primitive_type(row, column, column_idx, |a: bool| Ok(JSONValue::Bool(a)))?
+        }
+
+        Type::INT2 => convert_primitive_type(row, column, column_idx, |a: i16| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+
+        Type::INT4 => convert_primitive_type(row, column, column_idx, |a: i32| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+
+        Type::INT8 => convert_primitive_type(row, column, column_idx, |a: i64| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+
+        Type::NUMERIC => {
+            let decimal = row
+                .try_get::<_, Option<Decimal>>(column_idx)
+                .with_context(|| format!("column_name: {}", column.name()))?;
+
+            decimal.map_or(JSONValue::Null, |decimal| {
+                JSONValue::String(decimal.to_string())
+            })
+        }
+
+        Type::TEXT | Type::VARCHAR => {
+            convert_primitive_type(row, column, column_idx, |a: String| {
+                Ok(JSONValue::String(a))
+            })?
+        }
+        // Type::JSON | Type::JSONB => get_basic(row, column, column_i, |a: JSONValue| Ok(a))?,
+        Type::FLOAT4 => convert_primitive_type(row, column, column_idx, |a: f32| {
+            Ok(f64_to_json_number(a.into())?)
+        })?,
+        Type::FLOAT8 => {
+            convert_primitive_type(row, column, column_idx, |a: f64| Ok(f64_to_json_number(a)?))?
+        }
+        // these types require a custom StringCollector struct as an intermediary (see struct at bottom)
+        Type::TS_VECTOR => {
+            convert_primitive_type(row, column, column_idx, |a: StringCollector| {
+                Ok(JSONValue::String(a.0))
+            })?
+        }
+
+        // array types
+        Type::BOOL_ARRAY => {
+            convert_array_type(row, column, column_idx, |a: bool| Ok(JSONValue::Bool(a)))?
+        }
+        Type::INT2_ARRAY => convert_array_type(row, column, column_idx, |a: i16| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+        Type::INT4_ARRAY => convert_array_type(row, column, column_idx, |a: i32| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+        Type::INT8_ARRAY => convert_array_type(row, column, column_idx, |a: i64| {
+            Ok(JSONValue::Number(serde_json::Number::from(a)))
+        })?,
+        Type::TEXT_ARRAY | Type::VARCHAR_ARRAY => {
+            convert_array_type(row, column, column_idx, |a: String| {
+                Ok(JSONValue::String(a))
+            })?
+        }
+        Type::JSON_ARRAY | Type::JSONB_ARRAY | Type::JSONB | Type::JSON => {
+            unimplemented!("JSON TYPE FAMLIY")
+            //    get_array(row, column, column_i, |a: JSONValue| Ok(a))?
+        }
+        Type::FLOAT4_ARRAY => convert_array_type(row, column, column_idx, |a: f32| {
+            Ok(f64_to_json_number(a.into())?)
+        })?,
+        Type::FLOAT8_ARRAY => {
+            convert_array_type(row, column, column_idx, |a: f64| Ok(f64_to_json_number(a)?))?
+        }
+        // these types require a custom StringCollector struct as an intermediary (see struct at bottom)
+        Type::TS_VECTOR_ARRAY => {
+            convert_array_type(row, column, column_idx, |a: StringCollector| {
+                Ok(JSONValue::String(a.0))
+            })?
+        }
+
+        _ => anyhow::bail!(
+            "Cannot convert pg-cell \"{}\" of type \"{}\" to a JSONValue.",
+            column.name(),
+            column.type_().name()
+        ),
+    })
+}
+#[derive(Default, Serialize)]
+pub struct PostgresRows {
+    pub columns: Vec<String>,
+    pub len: usize,
+    pub rows: Vec<serde_json::Map<String, JSONValue>>,
+}
+
+impl TryFrom<Vec<Row>> for PostgresRows {
+    type Error = anyhow::Error;
+    fn try_from(rows: Vec<Row>) -> Result<Self, Self::Error> {
+        let mut obj = Self {
+            columns: vec![],
+            len: rows.len(),
+            rows: vec![],
+        };
+
+        if rows.is_empty() {
+            return Ok(obj);
+        }
+
+        for col in rows[0].columns() {
+            obj.columns.push(col.name().to_string());
+        }
+
+        for row in rows {
+            let mut result: serde_json::Map<String, JSONValue> = serde_json::Map::new();
+
+            for (idx, column) in row.columns().iter().enumerate() {
+                let name = column.name();
+                let json_value = to_json_value(&row, column, idx)?;
+                result.insert(name.to_string(), json_value);
+            }
+            obj.rows.push(result);
+        }
+        Ok(obj)
+    }
+}
 
 #[derive(Debug)]
 pub struct PostgresStorageParams {
@@ -86,7 +277,9 @@ impl PolkadotPostgresStorageImpl {
         events: &mut [crate::types::polkadot::EventDescribe],
     ) -> anyhow::Result<()> {
         let block_number = header.block_number as i64;
-        let block_hash = &header.block_hash;
+
+        let block_hash_hex = format!("0x{}", hex::encode(&header.block_hash));
+
         let upsert_raw_event_statemant = "INSERT INTO raw_event (
 								block_number, 
 								block_hash, 
@@ -162,7 +355,7 @@ impl PolkadotPostgresStorageImpl {
                         index = excluded.index,
                         pallet_index = excluded.pallet_index,
                         pallet_name = excluded.pallet_name,
-                        hash = excluded.hash,
+                        extrinsic_hash = excluded.extrinsic_hash,
                         who = excluded.who,
                         amount = excluded.amount";
 
@@ -188,7 +381,7 @@ impl PolkadotPostgresStorageImpl {
         }
 
         let mut extrinsic_success = false;
-        for (i, event_desc) in events.iter_mut().enumerate() {
+        for (_, event_desc) in events.iter_mut().enumerate() {
             let root_event = polkadot::Event::decode(&mut event_desc.root_bytes.as_ref()).unwrap();
             match root_event {
                 polkadot::Event::System(system_event) => match system_event {
@@ -199,23 +392,27 @@ impl PolkadotPostgresStorageImpl {
             }
         }
 
+        // upsert for raw_event
         for (i, event_desc) in events.iter_mut().enumerate() {
             let root_event = polkadot::Event::decode(&mut event_desc.root_bytes.as_ref())?;
 
             let (_, event_name) = root_event.name();
             let five_topics = FiveTopics::from(&event_desc.topics);
-            let block_time: i64 = 0;
+            let block_time: i64 = 0; // FIXME: which block time?
+            let extrinsic_hash_hex = format!("0x{}", hex::encode(&event_desc.extrinsic_hash));
+            let data_hex = format!("0x{}", hex::encode(&event_desc.data));
+            let index = event_desc.index as i32;
             // FIXME: make stream concurrent
             let rows = self
                 .base
                 .pg_client
                 .execute(&stmts[i], &[
                     &block_number,
-                    &block_hash,
+                    &block_hash_hex,
                     &block_time, // FIXME: block_time
-                    &event_desc.extrinsic_hash,
-                    &event_desc.data,
-                    &(event_desc.index as i32),
+                    &extrinsic_hash_hex,
+                    &data_hex,
+                    &index,
                     &five_topics.t0,
                     &five_topics.t1,
                     &five_topics.t2,
@@ -238,8 +435,8 @@ impl PolkadotPostgresStorageImpl {
                 polkadot::Event::Balances(balance_event) => match balance_event {
                     polkadot::balances::Event::Transfer { from, to, amount } => {
                         let event_name = "Transfer";
-                        let from = from.0;
-                        let to = to.0;
+                        let from_hex = format!("0x{}", hex::encode(from.0));
+                        let to_hex = format!("0x{}", hex::encode(to.0));
                         let amount = Decimal::from_u128(amount)
                             .expect("parse transfer u128 to decimal error");
 
@@ -248,14 +445,14 @@ impl PolkadotPostgresStorageImpl {
                             .pg_client
                             .execute(upsert_transfer_statemant, &[
                                 &block_number,
-                                &block_hash,
-                                &(event_desc.index as i32),
+                                &block_hash_hex,
+                                &index,
                                 &(event_desc.pallet_index as i16),
                                 &event_desc.pallet_name,
                                 &event_name,
-                                &event_desc.extrinsic_hash,
-                                &from,
-                                &to,
+                                &extrinsic_hash_hex,
+                                &from_hex,
+                                &to_hex,
                                 &amount,
                                 &extrinsic_success,
                             ])
@@ -267,7 +464,7 @@ impl PolkadotPostgresStorageImpl {
                     }
                     polkadot::balances::Event::Withdraw { who, amount } => {
                         let event_name = "Withdraw";
-                        let who = who.0;
+                        let who_hex = format!("0x{}", hex::encode(who.0));
                         let amount = Decimal::from_u128(amount)
                             .expect("parse withdraw u128 to decimal error");
 
@@ -276,13 +473,13 @@ impl PolkadotPostgresStorageImpl {
                             .pg_client
                             .execute(upsert_withdraw_statemant, &[
                                 &block_number,
-                                &block_hash,
-                                &(event_desc.index as i32),
+                                &block_hash_hex,
+                                &index,
                                 &(event_desc.pallet_index as i16),
                                 &event_desc.pallet_name,
                                 &event_name,
-                                &event_desc.extrinsic_hash,
-                                &who,
+                                &extrinsic_hash_hex,
+                                &who_hex,
                                 &amount,
                                 &extrinsic_success,
                             ])

@@ -10,7 +10,31 @@ pub struct DataEngine {
 #[derive(Clone, Serialize)]
 pub struct ListDataEngine {
     pub engines: Vec<DataEngine>,
+    /// The engine suppor chains.
     pub support_chains: HashMap<String, Vec<String>>,
+}
+
+impl ListDataEngine {
+    pub fn is_support(&self, engine: &str) -> bool {
+        self.support_chains.contains_key(engine)
+    }
+
+    pub fn is_support_chain(&self, engine: &str, chain: &str) -> bool {
+        if !self.support_chains.contains_key(engine) {
+            return false;
+        }
+
+        let chains = self.support_chains.get(engine).unwrap();
+        println!("chains = {:?}", chains);
+
+        for c in chains.iter() {
+            if *c == *chain {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 impl Default for ListDataEngine {

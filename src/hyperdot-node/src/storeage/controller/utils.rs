@@ -2,50 +2,50 @@ use subxt::events::RootEvent;
 
 /// Hold five topics for multi-topic in event.
 pub struct FiveTopics {
-    pub t0: Vec<u8>,
-    pub t1: Vec<u8>,
-    pub t2: Vec<u8>,
-    pub t3: Vec<u8>,
-    pub t4: Vec<u8>,
+    pub t0: String,
+    pub t1: String,
+    pub t2: String,
+    pub t3: String,
+    pub t4: String,
 }
 
 impl From<&Vec<Vec<u8>>> for FiveTopics {
     fn from(topics: &Vec<Vec<u8>>) -> Self {
         let mut result = FiveTopics {
-            t0: vec![],
-            t1: vec![],
-            t2: vec![],
-            t3: vec![],
-            t4: vec![],
+            t0: String::new(),
+            t1: String::new(),
+            t2: String::new(),
+            t3: String::new(),
+            t4: String::new(),
         };
         match topics.len() {
             0 => {}
             1 => {
-                result.t0 = topics[0].clone();
+                result.t0 = format!("0x{}", hex::encode(&topics[0]));
             }
             2 => {
-                result.t0 = topics[0].clone();
-                result.t1 = topics[1].clone();
+                result.t0 = format!("0x{}", hex::encode(&topics[0]));
+                result.t1 = format!("0x{}", hex::encode(&topics[1]));
             }
             3 => {
-                result.t0 = topics[0].clone();
-                result.t1 = topics[1].clone();
-                result.t2 = topics[2].clone();
+                result.t0 = format!("0x{}", hex::encode(&topics[0]));
+                result.t1 = format!("0x{}", hex::encode(&topics[1]));
+                result.t2 = format!("0x{}", hex::encode(&topics[2]));
             }
 
             4 => {
-                result.t0 = topics[0].clone();
-                result.t1 = topics[1].clone();
-                result.t2 = topics[2].clone();
-                result.t3 = topics[3].clone();
+                result.t0 = format!("0x{}", hex::encode(&topics[0]));
+                result.t1 = format!("0x{}", hex::encode(&topics[1]));
+                result.t2 = format!("0x{}", hex::encode(&topics[2]));
+                result.t3 = format!("0x{}", hex::encode(&topics[3]));
             }
 
             5 | _ => {
-                result.t0 = topics[0].clone();
-                result.t1 = topics[1].clone();
-                result.t2 = topics[2].clone();
-                result.t3 = topics[3].clone();
-                result.t4 = topics[4].clone();
+                result.t0 = format!("0x{}", hex::encode(&topics[0]));
+                result.t1 = format!("0x{}", hex::encode(&topics[1]));
+                result.t2 = format!("0x{}", hex::encode(&topics[2]));
+                result.t3 = format!("0x{}", hex::encode(&topics[3]));
+                result.t4 = format!("0x{}", hex::encode(&topics[4]));
             }
         }
 
