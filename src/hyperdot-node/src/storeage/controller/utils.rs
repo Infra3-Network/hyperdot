@@ -94,15 +94,3 @@ where E: RootEvent + GetName
         handle(event).await
     }
 }
-
-#[test]
-fn test_runtime_event_peek() {
-    let ev_peek = RuntimeEventHandle::<polkadot::Event>::default();
-    ev_peek.register("test", |e| {
-        let fut = async move {
-            todo!();
-        };
-
-        Box::pin(fut)
-    });
-}

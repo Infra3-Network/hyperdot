@@ -28,6 +28,8 @@ pub fn init(args: &ServerArgs, ctx: Context) -> anyhow::Result<Router> {
     let mut router = Router::new();
     router = core::core::CoreRouteBuild::new().build(router)?;
     router = v1::query::QueryRouteBuilder::new().build(router)?;
+    router = v1::system::SystemRouteBuilder::new().build(router)?;
+    router = v1::dataengine::DataEngineRouteBuilder::new().build(router)?;
     for chain_arg in args.chains.iter() {
         match chain_arg.chain.as_str() {
             "polkadot" => {

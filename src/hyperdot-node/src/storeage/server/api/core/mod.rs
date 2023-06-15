@@ -17,14 +17,14 @@ impl Default for ResponseCode {
 }
 
 #[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
-pub struct ResponseMetdata {
+pub struct ResponseMetadata {
     pub code: Option<ResponseCode>,
     pub reason: Option<String>,
 }
 
 
 
-impl ResponseMetdata {
+impl ResponseMetadata {
 	pub fn set_code(&mut self, code: ResponseCode) {
 		self.code = Some(code)
 	}
