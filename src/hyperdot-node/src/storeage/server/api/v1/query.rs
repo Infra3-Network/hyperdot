@@ -9,7 +9,7 @@ use axum::Json;
 use axum::Router;
 
 use super::core;
-use super::core::ResponseCode;
+use super::model::support::ResponseCode;
 use super::model;
 use super::route::Context;
 use super::API_ROOT_PATH;

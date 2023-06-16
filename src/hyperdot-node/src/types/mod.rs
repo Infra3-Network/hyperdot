@@ -1,5 +1,6 @@
 pub mod polkadot;
 pub mod rpc;
+pub mod block;
 
 // use hyperdot_common_macros::ToParams;
 // use serde::Deserialize;

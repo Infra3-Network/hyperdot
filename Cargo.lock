@@ -604,18 +604,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.3.3"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8f255e4b8027970e78db75e78831229c9815fdbfa67eb1a1b777a62e24b4a0"
+checksum = "80672091db20273a15cf9fdd4e47ed43b5091ec9841bf4c6145c9dfbbcae09ed"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.3.3"
+version = "4.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acd4f3c17c83b0ba34ffbc4f8bbd74f079413f747f84a6f89292f138057e36ab"
+checksum = "c1458a1df40e1e2afebb7ab60ce55c1fa8f431146205aa5f4887e0b111c27636"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1487,6 +1487,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "hyper",
+ "hyperdot-common-config",
  "hyperdot-node",
  "lazy_static",
  "subxt",
@@ -1495,6 +1496,15 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber 0.3.17",
+]
+
+[[package]]
+name = "hyperdot-common-config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1522,16 +1532,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperdot-common-types"
-version = "0.1.0"
-dependencies = [
- "hyperdot-common-macros",
- "jsonrpsee-core 0.18.2",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hyperdot-node"
 version = "0.1.0"
 dependencies = [
@@ -1545,6 +1545,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
+ "hyperdot-common-config",
  "hyperdot-common-macros",
  "jsonrpsee 0.18.2",
  "jsonrpsee-core 0.18.2",
@@ -2762,9 +2763,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal"
-version = "1.29.1"
+version = "1.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26bd36b60561ee1fb5ec2817f198b6fd09fa571c897a5e86d1487cfc2b096dfc"
+checksum = "d0446843641c69436765a35a5a77088e28c2e6a12da93e84aa3ab1cd4aa5a042"
 dependencies = [
  "arrayvec 0.7.2",
  "borsh",

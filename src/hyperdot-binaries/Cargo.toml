@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 hyperdot-node = { path = "../hyperdot-node" }
+hyperdot-common-config = { path = "../hyperdot-common/config" }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

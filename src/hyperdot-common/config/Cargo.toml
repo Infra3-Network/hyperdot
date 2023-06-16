@@ -1,10 +1,9 @@
 [package]
-name = "hyperdot-common-types"
+name = "hyperdot-common-config"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hyperdot-common-macros = { path = "../macros" }
 serde = { workspace = true, features = ["derive"]}
 serde_json = { workspace = true }
-jsonrpsee-core = { version = "0.18.2"}
+anyhow = { workspace = true}

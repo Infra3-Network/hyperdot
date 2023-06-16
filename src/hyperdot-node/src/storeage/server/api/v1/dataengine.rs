@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::pin::Pin;
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -6,6 +7,7 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use futures::Future;
 
 use super::model::dataengine;
 use super::model::support;
@@ -85,9 +87,8 @@ impl DataEngineRouteBuilder {
     pub fn build(self, router: Router<Context>) -> anyhow::Result<Router<Context>> {
         let base = self.base_path();
 
-        let api_get_pg_polkadot_schemes = format!("{}/postgres/polkadot/schemes", base);
+        let api_get_pg_polkadot_schemes = format!("{}/scheme/postgres/polkadot", base);
         tracing::info!("register api: {}", api_get_pg_polkadot_schemes);
-
         Ok(router.route(
             &api_get_pg_polkadot_schemes,
             get(PostgresSchemeHandle::get_polkadot),

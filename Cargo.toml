@@ -22,7 +22,7 @@ clap = { version = "4.3" }
 members = [
     "src/hyperdot-common/rpc",
     "src/hyperdot-common/macros",
-    "src/hyperdot-common/types",
+    "src/hyperdot-common/config",
     "src/hyperdot-node",
     "src/hyperdot-binaries"
 ]

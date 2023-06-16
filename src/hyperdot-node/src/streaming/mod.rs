@@ -1,5 +1,5 @@
 mod speaker;
-mod block;
+pub mod block;
 
 // pub use streaming::Streaming;
 // pub use streaming::SpawnPolkadotParams;

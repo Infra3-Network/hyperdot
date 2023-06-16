@@ -147,7 +147,7 @@ pub mod query {
     use serde::Deserialize;
     use serde::Serialize;
 
-    use super::core::ResponseMetadata;
+    use super::support::ResponseMetadata;
     use crate::storeage::controller::postgres::PostgresRows;
 
     #[derive(Deserialize)]

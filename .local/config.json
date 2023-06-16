@@ -1,0 +1,107 @@
+{
+    "storage": {
+        "nodes": [
+            {
+                "id": 1,
+                "name": "hyperdot-node",
+                "rpc_endpoint": "127.0.0.1:15722",
+                "http_endpoint": "127.0.0.1:3000",
+                "data_engines": [
+                    {
+                        "postgres": {
+                            "connections": [
+                                {
+                                    "name": "pg1",
+                                    "username": "postgres",
+                                    "password": "postgres",
+                                    "host": "127.0.0.1",
+                                    "port": 5432
+                                },
+                                {
+                                    "name": "pg2",
+                                    "username": "postgres",
+                                    "password": "postgres",
+                                    "host": "127.0.0.1",
+                                    "port": 5432
+                                }
+                            ],
+                            "support_chains": [
+                                {
+                                    "id": 50,
+                                    "name": "LocalSubstrate",
+                                    "use_connection": "pg1",
+                                    "dbname": "local_substrate",
+                                    "enabled": true
+                                },
+                                {
+                                    "id": 30,
+                                    "name": "Westend",
+                                    "use_connection": "pg2",
+                                    "dbname": "westend",
+                                    "enabled": false
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "chain": [
+        {
+            "id": 50,
+            "name": "LocalSubstrate",
+            "url": "ws://192.168.124.34:9944",
+            "enabled": true,
+            "kind": "Polkadot",
+            "polkadot_runtime": {
+                "config": "substrate"
+            },
+            
+            "storage_nodes": [
+                "hyperdot-node"
+            ]
+
+        },
+        {
+            "id": 10,
+            "name": "Polkadot",
+            "url": "wss://rpc.polkadot.io",
+            "enabled": false,
+            "kind": "Polkadot",
+            "polkadot_runtime": {
+                "config": "polkadot"
+            } 
+        },
+        {
+            "id": 20,
+            "name": "Kusama",
+            "url": "wss://kusama-rpc.polkadot.io",
+            "enabled": false,
+            "kind": "Polkadot",
+            "polkadot_runtime": {
+                "config": "polkadot"
+            } 
+        },
+        {
+            "id": 30,
+            "name": "Westend",
+            "url": "wss://westend-rpc.polkadot.io",
+            "enabled": false,
+            "kind": "Polkadot",
+            "polkadot_runtime": {
+                "config": "polkadot"
+            }   
+        },
+        {
+            "id": 40,
+            "name": "Westend",
+            "url": "wss://rococo-rpc.polkadot.io",
+            "enabled": false,
+            "kind": "Polkadot",
+            "polkadot_runtime": {
+                "config": "polkadot"
+            } 
+        }
+    ]
+}

@@ -2,15 +2,24 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use hyperdot_common_config::Chain;
+use hyperdot_common_config::PublicChain;
+use hyperdot_common_config::StorageNode;
 use subxt::Config;
 use subxt::PolkadotConfig;
+use subxt::SubstrateConfig;
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinHandle;
 
+use super::sync::PolkadotSyncer;
+use super::sync::PolkadotSyncerHandle;
 use super::Syncer;
 use crate::streaming::speaker::SpeakerController;
+use crate::types::block::PolkadotChainBlock;
 use crate::types::polkadot;
 use crate::types::rpc::WriteBlockRequest;
+
 // use crate::types::WriteBlockRequest;
 // use crate::speaker::SpeakerController;
 
@@ -149,5 +158,101 @@ impl BlockStreaming<PolkadotConfig> {
             task_handle,
             speaker,
         })
+    }
+}
+
+pub struct BlockStreamingHandle2 {
+    sync_handle: PolkadotSyncerHandle,
+    streaming_tg: JoinHandle<anyhow::Result<()>>,
+}
+
+impl BlockStreamingHandle2 {
+    pub async fn stopped(self) -> anyhow::Result<()> {
+        self.sync_handle.stopped().await?;
+        self.streaming_tg.await?
+    }
+}
+
+pub struct BlockStreaming2 {}
+
+impl BlockStreaming2 {
+    pub async fn spawn(
+        chain: &Chain,
+        storage_nodes: &Vec<StorageNode>,
+    ) -> anyhow::Result<BlockStreamingHandle2> {
+        match chain.kind {
+            PublicChain::Ethereum => {
+                unimplemented!("unsupport ethereum public chain streaming currently")
+            }
+            PublicChain::Polkadot => Self::spawn_polkadot_chain(chain, storage_nodes).await,
+        }
+    }
+
+    async fn spawn_polkadot_chain(
+        chain: &Chain,
+        storage_nodes: &Vec<StorageNode>,
+    ) -> anyhow::Result<BlockStreamingHandle2> {
+        let url = chain.url.clone();
+        let runtime = match chain.polkadot_runtime.as_ref() {
+            Some(runtime) => runtime.config.as_ref(),
+            None => "substrate",
+        };
+
+        tracing::info!("🤔 {}: using polkadot runtime config", chain.name);
+        match runtime {
+            "polkadot" => {
+                let (tx, rx) = unbounded_channel();
+                let sync_handle = PolkadotSyncer::spawn_polkadot(chain, tx).await?;
+                let tg = tokio::spawn(async move { Self::polkadot_runtime_polkadot_loop(rx).await });
+                
+                return Ok(BlockStreamingHandle2 {
+                    streaming_tg: tg,
+                    sync_handle,
+                })
+            },
+            _ => {
+                let (tx, rx) = unbounded_channel();
+                let sync_handle = PolkadotSyncer::spawn_substrate(chain, tx).await?;
+                let tg =
+                    tokio::spawn(async move { Self::polkadot_runtime_substrate_loop(rx).await });
+                return Ok(BlockStreamingHandle2 {
+                    streaming_tg: tg,
+                    sync_handle,
+                })
+            }
+        };
+
+    }
+
+    async fn polkadot_runtime_polkadot_loop(
+        mut rx: UnboundedReceiver<PolkadotChainBlock<PolkadotConfig>>,
+    ) -> anyhow::Result<()> {
+        loop {
+            let block = match rx.recv().await {
+                None => {
+                    tracing::error!("block channel closed");
+                    return Err(anyhow!("channel of syncer closed"));
+                }
+                Some(block) => block,
+            };
+        }
+
+        Ok(())
+    }
+
+    async fn polkadot_runtime_substrate_loop(
+        mut rx: UnboundedReceiver<PolkadotChainBlock<SubstrateConfig>>,
+    ) -> anyhow::Result<()> {
+        loop {
+            let block = match rx.recv().await {
+                None => {
+                    tracing::error!("block channel closed");
+                    return Err(anyhow!("channel of syncer closed"));
+                }
+                Some(block) => block,
+            };
+        }
+
+        Ok(())
     }
 }
