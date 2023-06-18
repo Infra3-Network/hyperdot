@@ -23,6 +23,7 @@ members = [
     "src/hyperdot-common/rpc",
     "src/hyperdot-common/macros",
     "src/hyperdot-common/config",
+    "src/hyperdot-core",
     "src/hyperdot-node",
     "src/hyperdot-binaries"
 ]

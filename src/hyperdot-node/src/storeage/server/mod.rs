@@ -1,7 +1,8 @@
+mod api;
 mod jsonrpc;
 mod server;
-mod api;
 
-pub use server::ServerArgs;
+pub use jsonrpc::JsonRpcServer;
 pub use server::ChainStorageArgs;
 pub use server::Server;
+pub use server::ServerArgs;

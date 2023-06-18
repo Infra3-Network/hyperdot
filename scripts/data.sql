@@ -3,19 +3,40 @@ DROP TABLE raw_event;
 DROP TABLE transfer;
 DROP TABLE withdraw;
 
-CREATE TABLE IF NOT EXISTS block (
-    block_number bigint NOT NULL,
-    block_hash TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS blocks (
+    "number" bigint NOT NULL,
+    "hash" TEXT NOT NULL,
     parent_hash TEXT NOT NULL,
-    state_root TEXT NOT NULL,
     extrinsics_root TEXT NOT NULL,
-    -- Additional columns for the digest if needed
-    -- digest_column_name data_type,
-    PRIMARY KEY (block_number)
+    state_root TEXT NOT NULL,
+    hash_bytes BYTEA NOT NULL,
+    parent_hash_bytes BYTEA NOT NULL,
+    extrinsics_root_bytes BYTEA NOT NULL,
+    state_root_bytes BYTEA NOT NULL,
+    PRIMARY KEY (number)
 );
 
-CREATE INDEX  IF NOT EXISTS  idx_parent_hash ON block (parent_hash);
-CREATE INDEX  IF NOT EXISTS  idx_block_hash ON block (block_hash);
+CREATE INDEX  IF NOT EXISTS  idx_blocks_hash ON blocks ("hash");
+CREATE INDEX  IF NOT EXISTS  idx_blocks_parent_hash ON blocks (parent_hash);
+
+
+CREATE TABLE IF NOT EXISTS extrinsics (
+    block_number bigint NOT NULL,
+    block_hash TEXT NOT NULL,
+    "index" INT NOT NULL,
+    is_signed BOOLEAN NOT NULL,
+    pallet_name TEXT,
+    variant_name TEXT,
+    pallet_index SMALLINT NOT NULL,
+    variant_index SMALLINT NOT NULL,
+    signed_address TEXT,
+    block_hash_bytes BYTEA NOT NULL,
+    signed_address_bytes BYTEA
+);
+
+CREATE UNIQUE INDEX  IF NOT EXISTS  index_extrinsics ON extrinsics (block_number, "index");
+CREATE INDEX  IF NOT EXISTS  index_extrinsics_block_hash ON extrinsics (block_hash);
+
 
 
 CREATE TABLE IF NOT EXISTS raw_event (

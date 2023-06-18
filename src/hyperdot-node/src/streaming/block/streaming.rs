@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use hyperdot_common_config::Chain;
 use hyperdot_common_config::PublicChain;
-use hyperdot_common_config::StorageNode;
+use hyperdot_common_config::StorageNodeConfig;
 use subxt::Config;
 use subxt::PolkadotConfig;
 use subxt::SubstrateConfig;
@@ -15,9 +15,11 @@ use tokio::task::JoinHandle;
 use super::sync::PolkadotSyncer;
 use super::sync::PolkadotSyncerHandle;
 use super::Syncer;
+use crate::streaming::speaker;
 use crate::streaming::speaker::SpeakerController;
-use crate::types::block::PolkadotChainBlock;
+use crate::types::block::polkadot_chain;
 use crate::types::polkadot;
+use crate::types::rpc::WriteBlock;
 use crate::types::rpc::WriteBlockRequest;
 
 // use crate::types::WriteBlockRequest;
@@ -173,59 +175,57 @@ impl BlockStreamingHandle2 {
     }
 }
 
-pub struct BlockStreaming2 {}
+pub struct BlockStreaming2 {
+    chain: Chain,
+    storage_nodes: Vec<StorageNodeConfig>,
+}
 
 impl BlockStreaming2 {
     pub async fn spawn(
         chain: &Chain,
-        storage_nodes: &Vec<StorageNode>,
+        storage_nodes: &Vec<StorageNodeConfig>,
+        speaker_controller: Arc<crate::streaming::speaker::Controller>,
     ) -> anyhow::Result<BlockStreamingHandle2> {
+        let bs = BlockStreaming2 {
+            chain: chain.clone(),
+            storage_nodes: storage_nodes.clone(),
+        };
         match chain.kind {
             PublicChain::Ethereum => {
                 unimplemented!("unsupport ethereum public chain streaming currently")
             }
-            PublicChain::Polkadot => Self::spawn_polkadot_chain(chain, storage_nodes).await,
+            PublicChain::Polkadot => bs.spawn_polkadot_chain(speaker_controller.clone()).await,
         }
     }
 
     async fn spawn_polkadot_chain(
-        chain: &Chain,
-        storage_nodes: &Vec<StorageNode>,
+        self,
+        speaker_controller: Arc<speaker::Controller>,
     ) -> anyhow::Result<BlockStreamingHandle2> {
-        let url = chain.url.clone();
-        let runtime = match chain.polkadot_runtime.as_ref() {
+        let runtime = match self.chain.polkadot_runtime.as_ref() {
             Some(runtime) => runtime.config.as_ref(),
             None => "substrate",
         };
 
-        tracing::info!("🤔 {}: using polkadot runtime config", chain.name);
-        match runtime {
-            "polkadot" => {
-                let (tx, rx) = unbounded_channel();
-                let sync_handle = PolkadotSyncer::spawn_polkadot(chain, tx).await?;
-                let tg = tokio::spawn(async move { Self::polkadot_runtime_polkadot_loop(rx).await });
-                
-                return Ok(BlockStreamingHandle2 {
-                    streaming_tg: tg,
-                    sync_handle,
-                })
-            },
-            _ => {
-                let (tx, rx) = unbounded_channel();
-                let sync_handle = PolkadotSyncer::spawn_substrate(chain, tx).await?;
-                let tg =
-                    tokio::spawn(async move { Self::polkadot_runtime_substrate_loop(rx).await });
-                return Ok(BlockStreamingHandle2 {
-                    streaming_tg: tg,
-                    sync_handle,
-                })
-            }
+        tracing::info!("🤔 {}: using {} runtime config", self.chain.name, runtime);
+        let (tx, rx) = unbounded_channel();
+        let sync_handle = match runtime {
+            "polkadot" => PolkadotSyncer::spawn_polkadot(&self.chain, tx).await?,
+            _ => PolkadotSyncer::spawn_substrate(&self.chain, tx).await?,
         };
 
+        let tg =
+            tokio::spawn(async move { self.polkadot_runtime_loop(rx, speaker_controller).await });
+        return Ok(BlockStreamingHandle2 {
+            streaming_tg: tg,
+            sync_handle,
+        });
     }
 
-    async fn polkadot_runtime_polkadot_loop(
-        mut rx: UnboundedReceiver<PolkadotChainBlock<PolkadotConfig>>,
+    async fn polkadot_runtime_loop(
+        self,
+        mut rx: UnboundedReceiver<polkadot_chain::Block>,
+        speaker_controller: Arc<speaker::Controller>,
     ) -> anyhow::Result<()> {
         loop {
             let block = match rx.recv().await {
@@ -235,24 +235,35 @@ impl BlockStreaming2 {
                 }
                 Some(block) => block,
             };
-        }
 
-        Ok(())
-    }
+            let block_number = block.header.block_number;
 
-    async fn polkadot_runtime_substrate_loop(
-        mut rx: UnboundedReceiver<PolkadotChainBlock<SubstrateConfig>>,
-    ) -> anyhow::Result<()> {
-        loop {
-            let block = match rx.recv().await {
-                None => {
-                    tracing::error!("block channel closed");
-                    return Err(anyhow!("channel of syncer closed"));
-                }
-                Some(block) => block,
+            println!(
+                "{} \n block #{}, size {}",
+                self.chain.name,
+                block.header.block_number,
+                std::mem::size_of_val(&block.body)
+            );
+
+            let request = WriteBlock {
+                chain: self.chain.clone(),
+                polkadot_blocks: Some(vec![block]),
             };
-        }
 
-        Ok(())
+            match speaker_controller.write_block(request).await {
+                Err(err) => {
+                    tracing::error!(
+                        "{}: write block #{} error: {}",
+                        self.chain.name,
+                        block_number,
+                        err
+                    );
+                    continue;
+                }
+                Ok(_) => {
+                    tracing::error!("{}: write block #{} success", self.chain.name, block_number);
+                }
+            }
+        }
     }
 }

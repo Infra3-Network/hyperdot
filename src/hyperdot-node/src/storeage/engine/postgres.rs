@@ -1,5 +1,13 @@
+use std::any::Any;
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use anyhow::Context;
+use hyperdot_common_config::Chain;
+use hyperdot_common_config::PostgresDataEngine;
+use hyperdot_common_config::PostgresDataEngineConnection;
+use hyperdot_common_config::PostgresDataEngineForChain;
+use hyperdot_common_config::PublicChain;
 use rust_decimal::prelude::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use serde::Serialize;
@@ -15,6 +23,7 @@ use tokio_postgres::Row;
 use super::utils::FiveTopics;
 use crate::runtime_api::polkadot;
 use crate::runtime_api::GetName;
+use crate::types::block::polkadot_chain;
 use crate::types::rpc::WriteBlockRequest;
 
 pub type JSONValue = serde_json::Value;
@@ -226,10 +235,19 @@ impl PostgresStorageParams {
     }
 }
 
+struct ConnectionState {
+    client: Client,
+    used_connection: PostgresDataEngineConnection,
+    support_chain: PostgresDataEngineForChain,
+    connection_config: tokio_postgres::Config,
+    connection_handle: JoinHandle<anyhow::Result<()>>,
+}
+
 pub struct PostgresStorage {
     params: PostgresStorageParams,
     pub pg_client: Client,
     pg_conn_handle: JoinHandle<anyhow::Result<()>>,
+    connections: HashMap<String, ConnectionState>, // support chain name of connection map to state
 }
 
 impl PostgresStorage {
@@ -262,6 +280,7 @@ impl PostgresStorage {
             params,
             pg_client,
             pg_conn_handle,
+            connections: HashMap::new(),
         })
     }
 }

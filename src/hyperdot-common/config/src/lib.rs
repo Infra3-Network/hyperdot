@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -48,17 +47,47 @@ pub struct DataEngine {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StorageNode {
+pub struct StorageRpcConfig {
+    pub url: String,
+    pub scheme: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageNodeConfig {
     pub id: usize,
     pub name: String,
-    pub rpc_endpoint: String,
+    pub rpc: StorageRpcConfig,
     pub http_endpoint: String,
     pub data_engines: Vec<DataEngine>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Storage {
-    pub nodes: Vec<StorageNode>,
+pub struct StorageConfig {
+    pub nodes: Vec<StorageNodeConfig>,
+}
+
+impl StorageConfig {
+    pub fn get_node_config(&self, node_name: &str) -> Option<StorageNodeConfig> {
+        self.nodes
+            .iter()
+            .find(|node| &node.name == node_name)
+            .map(|node| node.clone())
+    }
+}
+
+/// Representing different types of runtimes in the polkadot chain.
+/// For Instance, substrate is probably the preferred choice for
+/// most parallel chains, and there are some differences between
+/// polkadot and kusama due to the addition of several extrinsics
+/// to substrate.
+///
+/// # Note
+///
+/// If the runtime differs from the existing kind, you can
+/// continue enumerating the type.
+pub enum PolkadotRuntimeKind {
+    Substrate,
+    Polkadot,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,7 +114,7 @@ pub struct Chain {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Catalog {
-    pub storage: Storage,
+    pub storage: StorageConfig,
     pub chain: Vec<Chain>,
 }
 
@@ -93,7 +122,7 @@ impl TryFrom<&Path> for Catalog {
     type Error = anyhow::Error;
     fn try_from(p: &Path) -> Result<Self, Self::Error> {
         if p.extension().is_none() {
-            return Err(anyhow::anyhow!("path extension invalid"))
+            return Err(anyhow::anyhow!("path extension invalid"));
         }
 
         // let yaml_ostr = OsStr::new("yaml");
@@ -104,12 +133,11 @@ impl TryFrom<&Path> for Catalog {
                 let reader = std::io::BufReader::new(file);
                 match serde_json::from_reader(reader) {
                     Err(err) => Err(anyhow::anyhow!("{}", err)),
-                    Ok(cl) => Ok(cl)
+                    Ok(cl) => Ok(cl),
                 }
-            },
-            _ => return Err(anyhow::anyhow!("{}: path extension unsupport", ext)) 
+            }
+            _ => return Err(anyhow::anyhow!("{}: path extension unsupport", ext)),
         }
-        
     }
 }
 
@@ -126,7 +154,10 @@ mod tests {
                     {
                         "id": 1,
                         "name": "hyperdot-node",
-                        "rpc_endpoint": "127.0.0.1:15722",
+                        "rpc": {
+                            "url": "127.0.0.1:15722",
+                            "scheme": "ws",
+                        },
                         "http_endpoint": "127.0.0.1:3000",
                         "data_engines": [
                             {

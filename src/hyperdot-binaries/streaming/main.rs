@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use hyperdot_node::streaming::block;
 use hyperdot_common_config::Catalog;
+use hyperdot_node::streaming::block;
 // use hyperdot_node::streaming::jsonrpc::server::JsonRpcServerParams;
 // use hyperdot_node::streaming::BlockStreaming;
 // use hyperdot_node::streaming::OpenParams;
@@ -18,8 +18,9 @@ async fn main() -> anyhow::Result<()> {
         .try_init()?;
 
     let catalog = Catalog::try_from(Path::new(".local/config.json"))?;
-    let controller = block::StreamingController::new(catalog)?;
+    let mut controller = block::StreamingController::async_new(catalog).await?;
     controller.start().await?;
+    controller.stopped().await?;
     Ok(())
     // let params = OpenParams {
     //     child_urls: vec![

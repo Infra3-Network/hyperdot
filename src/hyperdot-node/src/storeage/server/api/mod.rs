@@ -1,6 +1,7 @@
 pub mod core;
 pub mod route;
 pub mod server;
+mod service;
 mod v1;
 
 pub use server::ApiServer;

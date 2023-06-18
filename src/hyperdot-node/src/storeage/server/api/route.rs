@@ -3,18 +3,22 @@ use std::sync::Arc;
 
 use axum::Router;
 use http::Method;
+use hyperdot_common_config::StorageNodeConfig;
 use tokio::sync::RwLock;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 
 use super::core;
 use super::v1;
+use crate::storeage::engine;
 use crate::storeage::ServerArgs;
 use crate::storeage::StorageController;
 
 #[derive(Clone)]
 pub struct Context {
-    pub controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>, // TODO: make as weak
+    pub cfg: StorageNodeConfig,
+    pub engine_controller: Arc<engine::Controller>,
+    // pub controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>, // TODO: make as weak
 }
 
 pub fn init(args: &ServerArgs, ctx: Context) -> anyhow::Result<Router> {

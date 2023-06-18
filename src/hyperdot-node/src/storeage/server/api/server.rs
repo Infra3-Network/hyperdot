@@ -1,26 +1,31 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
+use hyperdot_common_config::StorageNodeConfig;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use super::route;
 use super::route::Context;
-
+use crate::storeage::engine;
 use crate::storeage::ServerArgs;
 use crate::storeage::StorageController;
 use crate::storeage::StorageControllerParams;
 
 pub struct ApiServer {
-    args: ServerArgs,
+    cfg: StorageNodeConfig,
+    engine_controller: Arc<engine::Controller>,
     http_serv_handle: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
 impl ApiServer {
-    pub async fn new(args: ServerArgs) -> anyhow::Result<Self> {
+    pub async fn new(
+        cfg: StorageNodeConfig,
+        controller: Arc<engine::Controller>,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
-            args,
+            cfg,
+            engine_controller: controller,
             http_serv_handle: None,
         })
     }
@@ -32,19 +37,19 @@ impl ApiServer {
             ));
         }
 
-        let mut controllers = HashMap::new();
-        for chain_arg in self.args.chains.iter() {
-            let controller = StorageController::new(StorageControllerParams {
-                chain: chain_arg.chain.clone(),
-                storages: chain_arg.storage_urls.clone(),
-            })
-            .await?;
-            let _ = controllers.insert(chain_arg.chain.clone(), Arc::new(controller));
-        }
-       
+        // let mut controllers = HashMap::new();
+        // for chain_arg in self.args.chains.iter() {
+        //     let controller = StorageController::new(StorageControllerParams {
+        //         chain: chain_arg.chain.clone(),
+        //         storages: chain_arg.storage_urls.clone(),
+        //     })
+        //     .await?;
+        //     let _ = controllers.insert(chain_arg.chain.clone(), Arc::new(controller));
+        // }
 
         let ctx = Context {
-            controllers: Arc::new(RwLock::new(controllers)),
+            cfg: self.cfg.clone(),
+            engine_controller: self.engine_controller.clone(),
         };
 
         let app = route::init(&self.args, ctx)?;

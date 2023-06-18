@@ -1,10 +1,10 @@
 pub mod client;
-mod controller;
+mod engine;
 pub mod server;
 
+pub use engine::StorageController;
+pub use engine::StorageControllerParams;
 pub use server::ServerArgs;
-pub use controller::StorageController;
-pub use controller::StorageControllerParams;
 
 // mod channel;
 // pub use channel::PolkadotStorageChannel;

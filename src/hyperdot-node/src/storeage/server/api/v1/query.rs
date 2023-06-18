@@ -7,74 +7,93 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use hyperdot_core::protocols::QueryPostgresRequest;
+use hyperdot_core::protocols::QueryPostgresResponse;
+use hyperdot_core::protocols::ResponseCode;
 
 use super::core;
-use super::model::support::ResponseCode;
-use super::model;
+// use super::model;
+// use super::model::support::ResponseCode;
 use super::route::Context;
 use super::API_ROOT_PATH;
 use super::API_VERSION;
-use crate::storeage::controller::postgres::PolkadotPostgresStorageImpl;
-use crate::storeage::controller::postgres::PostgresRows;
+use crate::storeage::engine::postgres::PolkadotPostgresStorageImpl;
+use crate::storeage::engine::postgres::PostgresRows;
 
 struct PostgresQueryHandle;
 
 impl PostgresQueryHandle {
     pub async fn run(
         State(ctx): State<Context>,
-        Json(payload): Json<model::query::RunPostgresQueryPayload>,
-    ) -> Result<Json<model::query::RunPostgresQueryResponse>, (StatusCode, String)> {
-        let mut response = model::query::RunPostgresQueryResponse::default();
-        if !core::model::SUPPORT_DATA_ENGINES.is_support(&payload.engine) {
-            response.meta.set_code(ResponseCode::Error);
-            response
-                .meta
-                .set_reason(format!("{} engine not support", payload.engine));
-            return Ok(Json(response));
-        }
+        Json(request): Json<QueryPostgresRequest>,
+    ) -> Result<Json<QueryPostgresResponse>, (StatusCode, String)> {
+        let mut response = QueryPostgresResponse::default();
+        // if !core::model::SUPPORT_DATA_ENGINES.is_support(&request.engine) {
+        //     response.meta.set_code(ResponseCode::Error);
+        //     response
+        //         .meta
+        //         .set_reason(format!("{} engine not support", request.engine));
+        //     return Ok(Json(response));
+        // }
 
-        if !core::model::SUPPORT_DATA_ENGINES.is_support_chain(&payload.engine, &payload.chain) {
-            response.meta.set_code(ResponseCode::Error);
-            response.meta.set_reason(format!(
-                "{} chain not support at engine {}",
-                payload.chain, payload.engine
-            ));
-            return Ok(Json(response));
-        }
+        // if !core::model::SUPPORT_DATA_ENGINES.is_support_chain(&request.engine, &request.chain) {
+        //     response.meta.set_code(ResponseCode::Error);
+        //     response.meta.set_reason(format!(
+        //         "{} chain not support at engine {}",
+        //         request.chain, request.engine
+        //     ));
+        //     return Ok(Json(response));
+        // }
 
-        if payload.query.is_empty() {
+        if request.query.is_empty() {
             response.meta.set_code(ResponseCode::Error);
             response.meta.set_reason(format!("query is empty"));
             return Ok(Json(response));
         }
 
-        match payload.chain.as_str() {
-            "polkadot" => {
-                let controller = {
-                    let controllers = ctx.controllers.read().await;
-                    controllers.get("polkadot").unwrap().clone()
-                };
-
-                let child = controller.get_child("postgres").await;
-                let pg_impl = child.downcast::<PolkadotPostgresStorageImpl>().unwrap();
-                let rows = pg_impl
-                    .base
-                    .pg_client
-                    .query(&payload.query, &[])
-                    .await
-                    .unwrap();
-
-                response.rows = PostgresRows::try_from(rows).unwrap();
-                return Ok(Json(response));
-            }
-            _ => {
+        let pg_engine = match ctx.engine_controller.pg_engine.as_ref() {
+            None => {
                 response.meta.set_code(ResponseCode::Error);
                 response
                     .meta
-                    .set_reason(format!("{} chain not support", payload.chain));
+                    .set_reason(format!("postgres engine not found"));
                 return Ok(Json(response));
             }
+            Some(pg_engine) => pg_engine,
+        };
+
+        match pg_engine.query(&request.chain, &request.query).await {
+            Err(err) => {}
+
+            Ok(res) => {}
         }
+        // match request.chain.as_str() {
+        //     "polkadot" => {
+        //         let controller = {
+        //             let controllers = ctx.controllers.read().await;
+        //             controllers.get("polkadot").unwrap().clone()
+        //         };
+
+        //         let child = controller.get_child("postgres").await;
+        //         let pg_impl = child.downcast::<PolkadotPostgresStorageImpl>().unwrap();
+        //         let rows = pg_impl
+        //             .base
+        //             .pg_client
+        //             .query(&request.query, &[])
+        //             .await
+        //             .unwrap();
+
+        //         response.rows = PostgresRows::try_from(rows).unwrap();
+        //         return Ok(Json(response));
+        //     }
+        //     _ => {
+        //         response.meta.set_code(ResponseCode::Error);
+        //         response
+        //             .meta
+        //             .set_reason(format!("{} chain not support", request.chain));
+        //         return Ok(Json(response));
+        //     }
+        // }
     }
 }
 

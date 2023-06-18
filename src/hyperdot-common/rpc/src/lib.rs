@@ -1,5 +1,4 @@
 mod jsee;
-
 pub use jsee::JseeRpcClient;
 pub use jsee::JseeRpcClientParams;
 pub use jsee::POKLADOT_MAINNET;
