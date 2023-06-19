@@ -1,47 +1,44 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Result as AnyResult;
-use futures::Future;
-use hyperdot_common_config::StorageConfig;
-use hyperdot_common_config::StorageNodeConfig;
+use hyperdot_core::config::StorageConfig;
+use hyperdot_core::config::StorageNodeConfig;
 use jsonrpsee::server::ServerBuilder;
 use jsonrpsee::server::ServerHandle;
 use jsonrpsee::types::error::ErrorCode;
 use jsonrpsee::types::error::ErrorObject;
-use jsonrpsee::types::Params;
 use jsonrpsee::types::ResponsePayload;
 use jsonrpsee::RpcModule;
 use tracing::info;
 
-use crate::storeage::engine::Controller;
+use crate::storeage::engine;
 use crate::types::rpc::WriteBlock;
 use crate::types::rpc::WriteBlockResponse;
 
 #[derive(Clone)]
 pub struct JsonRpcServerContext {
     // controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>,
-    engine_controlelr: Arc<Controller>, // TODO: make as weak
+    engine_controlelr: Arc<engine::Controller>, // TODO: make as weak
     cfg: StorageNodeConfig,
 }
 
 pub struct JsonRpcServer {
     // args: ServerArgs,
     cfg: StorageNodeConfig,
-    engine_controlelr: Arc<Controller>,
+    engine_controller: Arc<engine::Controller>,
     // controllers: Arc<RwLock<HashMap<String, Arc<StorageController>>>>,
     handle: Option<ServerHandle>,
 }
 
 impl JsonRpcServer {
-    pub async fn async_new(cfg: StorageNodeConfig) -> anyhow::Result<Self> {
-        let engine_controller = Controller::async_new(cfg.data_engines.clone()).await?;
-
+    pub async fn async_new(
+        cfg: StorageNodeConfig,
+        engine_controller: Arc<engine::Controller>,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             cfg,
-            engine_controlelr: Arc::new(engine_controller),
+            engine_controller,
             handle: None,
         })
     }
@@ -53,7 +50,7 @@ impl JsonRpcServer {
         let addr = self.cfg.rpc.url.parse::<SocketAddr>()?;
         let server = ServerBuilder::new().build(addr).await?;
         let ctx = JsonRpcServerContext {
-            engine_controlelr: self.engine_controlelr.clone(),
+            engine_controlelr: self.engine_controller.clone(),
             cfg: self.cfg.clone(),
         };
         let rpc_module = register_methods(ctx)?;
@@ -80,7 +77,7 @@ pub fn register_methods(ctx: JsonRpcServerContext) -> AnyResult<RpcModule<JsonRp
             Ok(req) => req,
         };
 
-        let chain_name = req.chain.name.clone(); // let block_numbers = req.block_numbers();
+        let chain_name = req.chain.clone(); // let block_numbers = req.block_numbers();
 
         match ctx.engine_controlelr.write_block(req).await {
             Err(err) => {

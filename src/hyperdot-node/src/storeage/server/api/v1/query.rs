@@ -11,14 +11,13 @@ use hyperdot_core::protocols::QueryPostgresRequest;
 use hyperdot_core::protocols::QueryPostgresResponse;
 use hyperdot_core::protocols::ResponseCode;
 
-use super::core;
 // use super::model;
 // use super::model::support::ResponseCode;
 use super::route::Context;
 use super::API_ROOT_PATH;
 use super::API_VERSION;
-use crate::storeage::engine::postgres::PolkadotPostgresStorageImpl;
-use crate::storeage::engine::postgres::PostgresRows;
+// use crate::storeage::engine::postgres::PolkadotPostgresStorageImpl;
+// use crate::storeage::engine::postgres::PostgresRows;
 
 struct PostgresQueryHandle;
 
@@ -51,7 +50,7 @@ impl PostgresQueryHandle {
             return Ok(Json(response));
         }
 
-        let pg_engine = match ctx.engine_controller.get_pg_engine_or_error().await {
+        let pg_engine = match ctx.engine_controller.get_pg_engine().await {
             Err(err) => {
                 response.meta.set_error(err.to_string());
                 return Ok(Json(response));

@@ -2,9 +2,10 @@
 // use hyperdot_node::storeage::server::ServerArgs;
 use std::path::Path;
 
+use anyhow::anyhow;
 use clap::Parser;
-use hyperdot_common_config::Catalog;
-use hyperdot_node::storeage::server::JsonRpcServer;
+use hyperdot_core::config::Catalog;
+use hyperdot_node::storeage::Server;
 use tracing_subscriber::util::SubscriberInitExt;
 #[derive(Debug, Parser)]
 struct AppArgs {
@@ -12,6 +13,7 @@ struct AppArgs {
     #[arg(long)]
     name: String,
     /// The catalog config path.
+    #[arg(long)]
     catalog: String,
 }
 
@@ -24,8 +26,10 @@ async fn main() -> anyhow::Result<()> {
         .try_init()?;
 
     let args = AppArgs::parse();
+    println!("{}", args.catalog);
     tracing::info!("preapre {} storage node", args.name);
-    let catalog = Catalog::try_from(Path::new(&args.catalog))?;
+    let catalog = Catalog::try_from(Path::new(&args.catalog))
+        .map_err(|err| anyhow!("init catalog error: {}", err))?;
     let node_cfg = catalog.storage.get_node_config(&args.name).map_or(
         Err(anyhow::anyhow!(
             "provide name({}) cannot found in {}",
@@ -35,12 +39,8 @@ async fn main() -> anyhow::Result<()> {
         |node| Ok(node),
     )?;
 
-    let mut json_rpc_server = JsonRpcServer::async_new(node_cfg).await?;
+    let mut json_rpc_server = Server::async_new(node_cfg).await?;
     json_rpc_server.start().await?;
     json_rpc_server.stopped().await?;
-    // let args = ServerArgs::try_from(".local/storage-args.json")?;
-    // let mut server = Server::new(args).await?;
-    // server.start().await?;
-    // server.stopped().await?;
     Ok(())
 }

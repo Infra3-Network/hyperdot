@@ -4,7 +4,7 @@ use jsonrpsee::http_client::HttpClient;
 use jsonrpsee::http_client::HttpClientBuilder;
 
 use crate::types::rpc::WriteBlock;
-use crate::types::rpc::WriteBlockRequest;
+// use crate::types::rpc::WriteBlockRequest;
 use crate::types::rpc::WriteBlockResponse;
 
 pub struct JsonRpcClientParams {}
@@ -24,25 +24,6 @@ impl JsonRpcClinet {
         let client = HttpClientBuilder::default().build(url)?;
 
         Ok(Self { params, client })
-    }
-
-    pub async fn write_block<T>(
-        &self,
-        request: WriteBlockRequest<T>,
-    ) -> anyhow::Result<WriteBlockResponse>
-    where
-        T: Clone + Send + serde::Serialize,
-    {
-        match request.chain.as_str() {
-            "polkadot" => {
-                let response = self
-                    .client
-                    .request("/polkadot/write_block", request)
-                    .await?;
-                Ok(response)
-            }
-            _ => unimplemented!(),
-        }
     }
 
     pub async fn write_block2(&self, request: WriteBlock) -> anyhow::Result<WriteBlockResponse> {

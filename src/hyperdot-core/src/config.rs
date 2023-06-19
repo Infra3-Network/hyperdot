@@ -3,48 +3,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresDataEngineForChain {
-    /// The chain id.
-    pub id: usize,
-    /// The chain alias name.
-    pub name: String,
-    /// The chain storage used connection name.
-    pub use_connection: String,
-    /// The chain database name.
-    pub dbname: String,
-    /// If true the storage enabled
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresDataEngineConnection {
-    /// The postgres connection identify name.
-    pub name: String,
-    /// The postgres connection username.
-    pub username: String,
-    /// The postgres connection password.
-    pub password: String,
-    /// The postgres connection host.
-    pub host: String,
-    /// The postgres connection port.
-    pub port: u16,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostgresDataEngine {
-    /// The multiple connections for postgres. It colud
-    /// are same database or multiple database.
-    pub connections: Vec<PostgresDataEngineConnection>,
-    /// The postgres support chains
-    /// Note: connections[i] + support_chains[i].dbname = real connection.
-    pub support_chains: Vec<PostgresDataEngineForChain>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DataEngine {
-    pub postgres: Option<PostgresDataEngine>,
-}
+use super::types::DataEngineInfo;
+use crate::types::ChainKind;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageRpcConfig {
@@ -53,12 +13,17 @@ pub struct StorageRpcConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageApiServerConfig {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageNodeConfig {
     pub id: usize,
     pub name: String,
     pub rpc: StorageRpcConfig,
-    pub http_endpoint: String,
-    pub data_engines: Vec<DataEngine>,
+    pub apiserver: StorageApiServerConfig,
+    pub data_engines: Vec<DataEngineInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,17 +61,11 @@ pub struct PolkadotRuntime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum PublicChain {
-    Ethereum,
-    Polkadot,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Chain {
+pub struct ChainConfig {
     pub id: usize,
     pub name: String,
     pub url: String,
-    pub kind: PublicChain,
+    pub kind: ChainKind,
     pub polkadot_runtime: Option<PolkadotRuntime>,
     pub storage_nodes: Option<Vec<String>>,
     pub enabled: bool,
@@ -115,7 +74,7 @@ pub struct Chain {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Catalog {
     pub storage: StorageConfig,
-    pub chain: Vec<Chain>,
+    pub chain: Vec<ChainConfig>,
 }
 
 impl TryFrom<&Path> for Catalog {
@@ -158,7 +117,9 @@ mod tests {
                             "url": "127.0.0.1:15722",
                             "scheme": "ws",
                         },
-                        "http_endpoint": "127.0.0.1:3000",
+                        "apiserver": {
+                            "url: "127.0.0.1:3000"
+                        },
                         "data_engines": [
                             {
                                 "postgres": {

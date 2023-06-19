@@ -28,7 +28,7 @@ impl PostgresSchemeHandle {
     ) -> Result<Json<GetPostgresSchemeResponse>, StatusCode> {
         let pg_engine = ctx
             .engine_controller
-            .get_pg_engine_or_error()
+            .get_pg_engine()
             .await
             .unwrap(); // TODO: handle error
         let pg_conn_state = pg_engine
@@ -66,8 +66,11 @@ impl PostgresSchemeHandle {
         }
 
         Ok(Json(GetPostgresSchemeResponse {
-            meta: ResponseMetadata::success("get polkadot postgres scheme success"),
-            chain: "polkadot".to_string(),
+            meta: ResponseMetadata::success(&format!(
+                "get {} postgres scheme success",
+                request.chain
+            )),
+            chain: request.chain.clone(),
             tables,
         }))
     }
@@ -88,7 +91,7 @@ impl DataEngineRouteBuilder {
         let base = self.base_path();
 
         let api_get_pg_schemes = format!("{}/scheme/postgres", base);
-        tracing::info!("register api: {}", api_get_pg_schemes);
+        tracing::info!("register post api: {}", api_get_pg_schemes);
         Ok(router.route(&api_get_pg_schemes, post(PostgresSchemeHandle::get_scheme)))
     }
 

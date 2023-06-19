@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use hyperdot_common_config::Catalog;
+use hyperdot_core::config::Catalog;
 
 use super::streaming::BlockStreaming2;
 use super::streaming::BlockStreamingHandle2;

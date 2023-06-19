@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use futures::Future;
 use futures::StreamExt;
 use hyper::body::HttpBody;
-use hyperdot_common_config::Chain;
+use hyperdot_core::config::ChainConfig;
 use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::client::OfflineClientT;
@@ -105,7 +105,7 @@ pub struct PolkadotSyncer {
 
 impl PolkadotSyncer {
     pub async fn spawn_polkadot(
-        chain: &Chain,
+        chain: &ChainConfig,
         tx: UnboundedSender<polkadot_chain::Block>,
     ) -> anyhow::Result<PolkadotSyncerHandle> {
         // TODO: move to util
@@ -121,7 +121,7 @@ impl PolkadotSyncer {
     }
 
     pub async fn spawn_substrate(
-        chain: &Chain,
+        chain: &ChainConfig,
         tx: UnboundedSender<polkadot_chain::Block>,
     ) -> anyhow::Result<PolkadotSyncerHandle> {
         let client = JseeRpcClient::<SubstrateConfig>::async_new(

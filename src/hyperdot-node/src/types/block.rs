@@ -1,11 +1,6 @@
 pub mod polkadot_chain {
     use serde::Deserialize;
     use serde::Serialize;
-    use subxt::config::substrate::BlakeTwo256;
-    use subxt::config::substrate::SubstrateHeader;
-    use subxt::config::substrate::U256;
-    use subxt::config::Hasher;
-    use subxt::Config;
 
     #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
     pub enum EventPhase {

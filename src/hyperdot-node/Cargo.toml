@@ -7,7 +7,7 @@ edition = "2021"
 # hyperdot-common-rpc = { path = "../hyperdot-common/rpc"}
 
 hyperdot-core = {path = "../hyperdot-core" }
-hyperdot-common-config = {path = "../hyperdot-common/config" }
+# hyperdot-common-config = {path = "../hyperdot-common/config" }
 hyperdot-common-macros = { path = "../hyperdot-common/macros" }
 jsonrpsee = { version = "0.18.2", features = ["full"]}
 jsonrpsee-core = { version = "0.18.2"}

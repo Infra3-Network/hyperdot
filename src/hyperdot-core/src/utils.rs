@@ -1,10 +1,13 @@
 use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::Ok;
 use rust_decimal::prelude::Decimal;
 use tokio_postgres::types::FromSql;
 use tokio_postgres::types::Type;
 use tokio_postgres::Column;
 use tokio_postgres::Row;
+
+use crate::types::PostgresColumnData;
 
 fn convert_primitive_type<'a, T: FromSql<'a>>(
     row: &'a Row,
@@ -54,11 +57,12 @@ impl FromSql<'_> for StringCollector {
     }
 }
 
+/// Note. return None should skipped.
 pub fn to_json_value(
     row: &Row,
     column: &Column,
     column_idx: usize,
-) -> Result<serde_json::Value, anyhow::Error> {
+) -> Result<Option<PostgresColumnData>, anyhow::Error> {
     let f64_to_json_number = |raw_val: f64| -> Result<serde_json::Value, anyhow::Error> {
         let temp =
             serde_json::Number::from_f64(raw_val.into()).ok_or(anyhow!("invalid json-float"))?;
@@ -70,7 +74,10 @@ pub fn to_json_value(
         // for postgres types: https://www.postgresql.org/docs/7.4/datatype.html#DATATYPE-TABLE
         // single types
         Type::BOOL => convert_primitive_type(row, column, column_idx, |a: bool| {
-            Ok(serde_json::Value::Bool(a))
+            Ok(Some(PostgresColumnData {
+                column_type: PostgresColumnDataType::Boolean,
+                column_value: serde_json::Value::Number(a),
+            }))
         })?,
 
         Type::INT2 => convert_primitive_type(row, column, column_idx, |a: i16| {
@@ -94,6 +101,8 @@ pub fn to_json_value(
                 serde_json::Value::String(decimal.to_string())
             })
         }
+
+        Type::BYTEA => {}
 
         Type::TEXT | Type::VARCHAR => {
             convert_primitive_type(row, column, column_idx, |a: String| {

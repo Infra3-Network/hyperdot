@@ -4,220 +4,17 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use anyhow::Context;
-use hyperdot_common_config::Chain;
-use hyperdot_common_config::PostgresDataEngine;
-use hyperdot_common_config::PostgresDataEngineConnection;
-use hyperdot_common_config::PostgresDataEngineForChain;
-use hyperdot_common_config::PublicChain;
-use rust_decimal::prelude::Decimal;
-use rust_decimal::prelude::FromPrimitive;
-use serde::Serialize;
-use subxt::ext::codec::Decode;
+use hyperdot_core::types::PostgresDataEngine;
+use hyperdot_core::types::PostgresDataEngineConnection;
+use hyperdot_core::types::PostgresDataEngineForChain;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use tokio_postgres::types::FromSql;
-use tokio_postgres::types::Type;
 use tokio_postgres::Client;
-use tokio_postgres::Column;
 use tokio_postgres::NoTls;
-use tokio_postgres::Row;
 
 use super::super::engine::DataEngine;
 use super::writer::SubstrateWriter;
-use crate::runtime_api::polkadot;
-use crate::runtime_api::GetName;
 use crate::types::block::polkadot_chain;
-use crate::types::rpc::WriteBlockRequest;
-
-pub type JSONValue = serde_json::Value;
-
-fn convert_primitive_type<'a, T: FromSql<'a>>(
-    row: &'a Row,
-    column: &Column,
-    column_i: usize,
-    cfn: impl Fn(T) -> Result<JSONValue, anyhow::Error>,
-) -> Result<JSONValue, anyhow::Error> {
-    let raw_val = row
-        .try_get::<_, Option<T>>(column_i)
-        .with_context(|| format!("column_name:{}", column.name()))?;
-    raw_val.map_or(Ok(JSONValue::Null), cfn)
-}
-
-fn convert_array_type<'a, T: FromSql<'a>>(
-    row: &'a Row,
-    column: &Column,
-    column_i: usize,
-    cfn: impl Fn(T) -> Result<JSONValue, anyhow::Error>,
-) -> Result<JSONValue, anyhow::Error> {
-    let raw_val_array = row
-        .try_get::<_, Option<Vec<T>>>(column_i)
-        .with_context(|| format!("column_name:{}", column.name()))?;
-    Ok(match raw_val_array {
-        Some(val_array) => {
-            let mut result = vec![];
-            for val in val_array {
-                result.push(cfn(val)?);
-            }
-            JSONValue::Array(result)
-        }
-        None => JSONValue::Null,
-    })
-}
-
-// For TS_VECTOR convert
-struct StringCollector(String);
-impl FromSql<'_> for StringCollector {
-    fn from_sql(
-        _: &Type,
-        raw: &[u8],
-    ) -> Result<StringCollector, Box<dyn std::error::Error + Sync + Send>> {
-        let result = std::str::from_utf8(raw)?;
-        Ok(StringCollector(result.to_owned()))
-    }
-    fn accepts(_ty: &Type) -> bool {
-        true
-    }
-}
-
-pub fn to_json_value(
-    row: &Row,
-    column: &Column,
-    column_idx: usize,
-) -> Result<JSONValue, anyhow::Error> {
-    let f64_to_json_number = |raw_val: f64| -> Result<JSONValue, anyhow::Error> {
-        let temp =
-            serde_json::Number::from_f64(raw_val.into()).ok_or(anyhow!("invalid json-float"))?;
-        Ok(JSONValue::Number(temp))
-    };
-
-    Ok(match *column.type_() {
-        // for rust-postgres <> postgres type-mappings: https://docs.rs/postgres/latest/postgres/types/trait.FromSql.html#types
-        // for postgres types: https://www.postgresql.org/docs/7.4/datatype.html#DATATYPE-TABLE
-        // single types
-        Type::BOOL => {
-            convert_primitive_type(row, column, column_idx, |a: bool| Ok(JSONValue::Bool(a)))?
-        }
-
-        Type::INT2 => convert_primitive_type(row, column, column_idx, |a: i16| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-
-        Type::INT4 => convert_primitive_type(row, column, column_idx, |a: i32| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-
-        Type::INT8 => convert_primitive_type(row, column, column_idx, |a: i64| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-
-        Type::NUMERIC => {
-            let decimal = row
-                .try_get::<_, Option<Decimal>>(column_idx)
-                .with_context(|| format!("column_name: {}", column.name()))?;
-
-            decimal.map_or(JSONValue::Null, |decimal| {
-                JSONValue::String(decimal.to_string())
-            })
-        }
-
-        Type::TEXT | Type::VARCHAR => {
-            convert_primitive_type(row, column, column_idx, |a: String| {
-                Ok(JSONValue::String(a))
-            })?
-        }
-        // Type::JSON | Type::JSONB => get_basic(row, column, column_i, |a: JSONValue| Ok(a))?,
-        Type::FLOAT4 => convert_primitive_type(row, column, column_idx, |a: f32| {
-            Ok(f64_to_json_number(a.into())?)
-        })?,
-        Type::FLOAT8 => {
-            convert_primitive_type(row, column, column_idx, |a: f64| Ok(f64_to_json_number(a)?))?
-        }
-        // these types require a custom StringCollector struct as an intermediary (see struct at bottom)
-        Type::TS_VECTOR => {
-            convert_primitive_type(row, column, column_idx, |a: StringCollector| {
-                Ok(JSONValue::String(a.0))
-            })?
-        }
-
-        // array types
-        Type::BOOL_ARRAY => {
-            convert_array_type(row, column, column_idx, |a: bool| Ok(JSONValue::Bool(a)))?
-        }
-        Type::INT2_ARRAY => convert_array_type(row, column, column_idx, |a: i16| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-        Type::INT4_ARRAY => convert_array_type(row, column, column_idx, |a: i32| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-        Type::INT8_ARRAY => convert_array_type(row, column, column_idx, |a: i64| {
-            Ok(JSONValue::Number(serde_json::Number::from(a)))
-        })?,
-        Type::TEXT_ARRAY | Type::VARCHAR_ARRAY => {
-            convert_array_type(row, column, column_idx, |a: String| {
-                Ok(JSONValue::String(a))
-            })?
-        }
-        Type::JSON_ARRAY | Type::JSONB_ARRAY | Type::JSONB | Type::JSON => {
-            unimplemented!("JSON TYPE FAMLIY")
-            //    get_array(row, column, column_i, |a: JSONValue| Ok(a))?
-        }
-        Type::FLOAT4_ARRAY => convert_array_type(row, column, column_idx, |a: f32| {
-            Ok(f64_to_json_number(a.into())?)
-        })?,
-        Type::FLOAT8_ARRAY => {
-            convert_array_type(row, column, column_idx, |a: f64| Ok(f64_to_json_number(a)?))?
-        }
-        // these types require a custom StringCollector struct as an intermediary (see struct at bottom)
-        Type::TS_VECTOR_ARRAY => {
-            convert_array_type(row, column, column_idx, |a: StringCollector| {
-                Ok(JSONValue::String(a.0))
-            })?
-        }
-
-        _ => anyhow::bail!(
-            "Cannot convert pg-cell \"{}\" of type \"{}\" to a JSONValue.",
-            column.name(),
-            column.type_().name()
-        ),
-    })
-}
-#[derive(Default, Serialize)]
-pub struct PostgresRows {
-    pub columns: Vec<String>,
-    pub len: usize,
-    pub rows: Vec<serde_json::Map<String, JSONValue>>,
-}
-
-impl TryFrom<Vec<Row>> for PostgresRows {
-    type Error = anyhow::Error;
-    fn try_from(rows: Vec<Row>) -> Result<Self, Self::Error> {
-        let mut obj = Self {
-            columns: vec![],
-            len: rows.len(),
-            rows: vec![],
-        };
-
-        if rows.is_empty() {
-            return Ok(obj);
-        }
-
-        for col in rows[0].columns() {
-            obj.columns.push(col.name().to_string());
-        }
-
-        for row in rows {
-            let mut result: serde_json::Map<String, JSONValue> = serde_json::Map::new();
-
-            for (idx, column) in row.columns().iter().enumerate() {
-                let name = column.name();
-                let json_value = to_json_value(&row, column, idx)?;
-                result.insert(name.to_string(), json_value);
-            }
-            obj.rows.push(result);
-        }
-        Ok(obj)
-    }
-}
 
 pub struct ConnectionState {
     pub client: Client,
@@ -331,10 +128,10 @@ impl PgEngine {
     }
     pub async fn write_block_internal(
         &self,
-        chain: &Chain,
+        chain: &str,
         block: Box<dyn Any + Send + Sync>,
     ) -> anyhow::Result<()> {
-        let conn_state = self.get_conn_state_for_chain(&chain.name).await?;
+        let conn_state = self.get_conn_state_for_chain(chain).await?;
         let block = block.downcast::<polkadot_chain::Block>().unwrap();
         SubstrateWriter::write_block(conn_state.clone(), *block).await
     }
@@ -420,7 +217,7 @@ impl DataEngine for PgEngine {
 
     async fn write_block(
         &self,
-        chain: Chain,
+        chain: String,
         blocks: Vec<Box<dyn Any + Send + Sync>>,
     ) -> anyhow::Result<()> {
         for block in blocks {

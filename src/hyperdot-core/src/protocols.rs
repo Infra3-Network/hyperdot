@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde::Serialize;
 
+use super::types::ChainKind;
 use super::types::EngineInfo;
 use super::types::PostgresRows;
 use super::types::PostgresTableInfo;
@@ -19,7 +20,7 @@ impl Default for ResponseCode {
     }
 }
 
-#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ResponseMetadata {
     pub code: Option<ResponseCode>,
     pub message: Option<String>,
@@ -62,12 +63,12 @@ pub struct ListDataEngineResponse {
     pub engines: HashMap<String, EngineInfo>,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct GetPostgresSchemeRequest {
     pub chain: String,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct GetPostgresSchemeResponse {
     pub meta: ResponseMetadata,
     pub chain: String,
@@ -84,7 +85,7 @@ pub struct QueryPostgresRequest {
     pub query: String,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default, Clone, Deserialize, Serialize)]
 pub struct QueryPostgresResponse {
     pub meta: ResponseMetadata,
     pub rows: PostgresRows,

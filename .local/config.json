@@ -8,23 +8,26 @@
                     "url": "127.0.0.1:15722",
                     "scheme": "http"
                 },
-                "http_endpoint": "127.0.0.1:3000",
+                "apiserver": {
+                    "url": "127.0.0.1:3000"
+                },
                 "data_engines": [
                     {
+                        "kind": "Postgres",
                         "postgres": {
                             "connections": [
                                 {
                                     "name": "pg1",
                                     "username": "postgres",
                                     "password": "postgres",
-                                    "host": "127.0.0.1",
+                                    "host": "hyperdot",
                                     "port": 5432
                                 },
                                 {
                                     "name": "pg2",
                                     "username": "postgres",
                                     "password": "postgres",
-                                    "host": "127.0.0.1",
+                                    "host": "hyperdot",
                                     "port": 5432
                                 }
                             ],
@@ -55,7 +58,7 @@
             "id": 50,
             "name": "LocalSubstrate",
             "url": "ws://192.168.0.107:9944",
-            "enabled": true,
+            "enabled": false,
             "kind": "Polkadot",
             "polkadot_runtime": {
                 "config": "substrate"

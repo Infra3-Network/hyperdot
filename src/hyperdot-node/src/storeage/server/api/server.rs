@@ -1,16 +1,13 @@
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyperdot_common_config::StorageNodeConfig;
-use tokio::sync::RwLock;
+use hyperdot_core::config::StorageNodeConfig;
+// use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use super::route;
 use super::route::Context;
 use crate::storeage::engine;
-use crate::storeage::ServerArgs;
-use crate::storeage::StorageController;
-use crate::storeage::StorageControllerParams;
 
 pub struct ApiServer {
     cfg: StorageNodeConfig,
@@ -21,11 +18,11 @@ pub struct ApiServer {
 impl ApiServer {
     pub async fn new(
         cfg: StorageNodeConfig,
-        controller: Arc<engine::Controller>,
+        engine_controller: Arc<engine::Controller>,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             cfg,
-            engine_controller: controller,
+            engine_controller,
             http_serv_handle: None,
         })
     }
@@ -52,9 +49,10 @@ impl ApiServer {
             engine_controller: self.engine_controller.clone(),
         };
 
-        let app = route::init(&self.args, ctx)?;
+        let app = route::init(ctx)?;
 
-        let addr = self.args.http_server_address.as_str().parse()?;
+        let url = self.cfg.apiserver.url.as_str();
+        let addr = url.parse()?;
 
         let handle = tokio::spawn(async move {
             axum::Server::bind(&addr)
@@ -63,10 +61,7 @@ impl ApiServer {
                 .map_err(|err| anyhow::anyhow!("{}", err))
         });
 
-        tracing::info!(
-            "🏃 http apiserver has been listend at {}",
-            self.args.http_server_address,
-        );
+        tracing::info!("🏃 http apiserver has been listend at {}", url);
         self.http_serv_handle = Some(handle);
 
         Ok(())

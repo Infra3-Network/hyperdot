@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use hyperdot_common_config::Catalog;
+use hyperdot_core::config::Catalog;
 use hyperdot_node::streaming::block;
 // use hyperdot_node::streaming::jsonrpc::server::JsonRpcServerParams;
 // use hyperdot_node::streaming::BlockStreaming;
