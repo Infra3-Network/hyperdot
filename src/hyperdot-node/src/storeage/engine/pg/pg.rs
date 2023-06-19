@@ -219,12 +219,12 @@ impl TryFrom<Vec<Row>> for PostgresRows {
     }
 }
 
-pub(crate) struct ConnectionState {
-    pub(crate) client: Client,
-    pub(crate) used_connection: PostgresDataEngineConnection,
-    pub(crate) support_chain: PostgresDataEngineForChain,
-    pub(crate) connection_config: tokio_postgres::Config,
-    pub(crate) connection_handle: JoinHandle<anyhow::Result<()>>,
+pub struct ConnectionState {
+    pub client: Client,
+    pub used_connection: PostgresDataEngineConnection,
+    pub support_chain: PostgresDataEngineForChain,
+    pub connection_config: tokio_postgres::Config,
+    pub connection_handle: JoinHandle<anyhow::Result<()>>,
 }
 
 pub struct PgEngine {
@@ -317,7 +317,10 @@ impl PgEngine {
         })
     }
 
-    async fn get_conn_state_for_chain(&self, chain: &str) -> anyhow::Result<Arc<ConnectionState>> {
+    pub async fn get_conn_state_for_chain(
+        &self,
+        chain: &str,
+    ) -> anyhow::Result<Arc<ConnectionState>> {
         let rl = self.connections.read().await;
         match rl.get(chain) {
             None => {

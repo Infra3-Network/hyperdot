@@ -107,6 +107,19 @@ impl Controller {
         })
     }
 
+    pub async fn get_pg_engine_or_error(&self) -> anyhow::Result<Arc<PgEngine>> {
+        let pg_engine = match self.pg_engine.as_ref() {
+            None => {
+                // response.meta.set_code(ResponseCode::Error);
+                // response
+                //     .meta
+                //     .set_reason(format!("postgres engine not found"));
+                return Err(anyhow::anyhow!("Postgres data engine not found"));
+            }
+            Some(pg_engine) => Ok(pg_engine.clone()),
+        };
+    }
+
     pub async fn write_block(&self, mut req: WriteBlock) -> anyhow::Result<()> {
         // TODO: filter block at here.
         let engines = {

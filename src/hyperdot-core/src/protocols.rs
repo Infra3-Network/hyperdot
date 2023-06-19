@@ -42,6 +42,11 @@ impl ResponseMetadata {
         self.reason = Some(reason)
     }
 
+    pub fn set_error(&mut self, reason: String) {
+        self.code = Some(ResponseCode::Error);
+        self.reason = Some(reason)
+    }
+
     pub fn set_success_msg(&mut self, msg: String) {
         self.code = Some(ResponseCode::Success);
         self.message = Some(msg)
@@ -55,6 +60,11 @@ pub struct ListDataEngineResquest {}
 pub struct ListDataEngineResponse {
     pub header: ResponseMetadata,
     pub engines: HashMap<String, EngineInfo>,
+}
+
+#[derive(Default, Serialize)]
+pub struct GetPostgresSchemeRequest {
+    pub chain: String,
 }
 
 #[derive(Default, Serialize)]

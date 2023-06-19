@@ -51,21 +51,24 @@ impl PostgresQueryHandle {
             return Ok(Json(response));
         }
 
-        let pg_engine = match ctx.engine_controller.pg_engine.as_ref() {
-            None => {
-                response.meta.set_code(ResponseCode::Error);
-                response
-                    .meta
-                    .set_reason(format!("postgres engine not found"));
+        let pg_engine = match ctx.engine_controller.get_pg_engine_or_error().await {
+            Err(err) => {
+                response.meta.set_error(err.to_string());
                 return Ok(Json(response));
             }
-            Some(pg_engine) => pg_engine,
+            Ok(pg_engine) => pg_engine,
         };
 
         match pg_engine.query(&request.chain, &request.query).await {
-            Err(err) => {}
+            Err(err) => {
+                response.meta.set_error(err.to_string());
+                return Ok(Json(response));
+            }
 
-            Ok(res) => {}
+            Ok(res) => {
+                response.rows = res;
+                return Ok(Json(response));
+            }
         }
         // match request.chain.as_str() {
         //     "polkadot" => {

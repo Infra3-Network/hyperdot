@@ -37,7 +37,9 @@ async fn list_dataengines(
             for sc in pg.support_chains.iter() {
                 engine_info
                     .support_chains
-                    .insert(sc.name, ChainInfo { name: sc.name });
+                    .insert(sc.name.clone(), ChainInfo {
+                        name: sc.name.clone(),
+                    });
             }
             response.engines.insert("Postgres".to_string(), engine_info); // TODO: make enum
         }
