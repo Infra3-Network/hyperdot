@@ -106,20 +106,38 @@ pub struct PostgresTableInfo {
     pub data_type: String,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum PostgresColumnDataType {
-    Boolean,
-    Int2,
-    Int4,
-    Int8,
-    Numberic,
-    Bytea,
-    Text,
-    Varchar,
-    Float4,
+    Invalid,
+    BOOL,
+    SMALLINT,
+    INT,
+    BIGINT,
+    NUMERIC,
+    BYTEA,
+    TEXT,
+    VARCHAR,
+    FLOAT4,
     Float8,
+    TSVECTOR,
+    BOOL_ARRAY,
+    SMALLINT_ARRAY,
+    INT_ARRAY,
+    BIGINT_ARRAY,
+    TEXT_ARRAY,
+    VARBIT_ARRAY,
+    FLOAT4_ARRAY,
+    FLOAT8_ARRAY,
+    TSVECTOR_ARRAY,
 }
 
+impl Default for PostgresColumnDataType {
+    fn default() -> Self {
+        Self::Invalid
+    }
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PostgresColumnData {
     pub column_type: PostgresColumnDataType,
     pub column_value: serde_json::Value,
@@ -129,6 +147,7 @@ pub struct PostgresColumnData {
 pub struct PostgresRows {
     pub columns: Vec<String>,
     pub len: usize,
+    pub column_types: Vec<PostgresColumnDataType>,
     pub rows: Vec<serde_json::Map<String, serde_json::Value>>,
 }
 
@@ -137,6 +156,7 @@ impl TryFrom<Vec<Row>> for PostgresRows {
     fn try_from(rows: Vec<Row>) -> Result<Self, Self::Error> {
         let mut obj = Self {
             columns: vec![],
+            column_types: vec![],
             len: rows.len(),
             rows: vec![],
         };
@@ -149,13 +169,16 @@ impl TryFrom<Vec<Row>> for PostgresRows {
             obj.columns.push(col.name().to_string());
         }
 
-        for row in rows {
+        for (ri, row) in rows.into_iter().enumerate() {
             let mut result: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
 
             for (idx, column) in row.columns().iter().enumerate() {
                 let name = column.name();
-                let json_value = to_json_value(&row, column, idx)?;
-                result.insert(name.to_string(), json_value);
+                let col_data = to_json_value(&row, column, idx)?;
+                if ri == 0 {
+                    obj.column_types.push(col_data.column_type);
+                }
+                result.insert(name.to_string(), col_data.column_value);
             }
             obj.rows.push(result);
         }
