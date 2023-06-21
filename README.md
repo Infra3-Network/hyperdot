@@ -25,7 +25,7 @@ Hyperdot is a system designed with a separation of on-chain block data computati
 The following is the system architecture figure of hyperdot:
 
 
-![Hyperdot System Architecture](docs/imgs/hyperdot-arch.png)
+![Hyperdot System Architecture](docs/imgs/arch.png)
 
 
 The system architecture is divided into three main components: `hyperdot-streaming`, `hyperdot-storage` and `hyperdot-fronted-end`. The `hyperdot-streaming` is responsible for data synchronization, decoding, and computation of on-chain block data, while the  `hyperdot-storage`   is designed to store on-chain data and build powerful data enegines.
