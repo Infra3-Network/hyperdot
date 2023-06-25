@@ -1542,9 +1542,13 @@ name = "hyperdot-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "lazy_static",
+ "quote",
  "rust_decimal",
  "serde",
  "serde_json",
+ "subxt-codegen",
+ "syn 2.0.18",
  "tokio-postgres",
 ]
 

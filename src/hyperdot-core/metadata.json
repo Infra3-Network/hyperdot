@@ -1,0 +1,12 @@
+[
+    {
+        "name": "Polkadot",
+        "network": "wss://rpc.polkadot.io:443",
+        "generate": true
+    },
+    {
+        "name": "Kusama",
+        "network": "wss://kusama-rpc.polkadot.io:443",
+        "generate": true
+    }
+]

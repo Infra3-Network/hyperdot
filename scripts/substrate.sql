@@ -1,6 +1,56 @@
+DROP TABLE IF EXISTS block_log;
+CREATE TABLE IF NOT EXISTS block_log (
+    id TEXT NOT NULL,
+    block_number bigint NOT NULL,
+    "type" TEXT,
+    "data" TEXT,
+    engine TEXT
+);
+
+CREATE UNIQUE INDEX  IF NOT EXISTS  unique_index_block_log ON block_log (id);
+
+DROP TABLE IF EXISTS extrinsics;
+CREATE TABLE IF NOT EXISTS extrinsics (
+    id TEXT NOT NULL,
+    block_number BIGINT NOT NULL,
+    extrinsic_hash TEXT NOT NULL,
+    is_signed BOOLEAN NOT NULL,
+    mod_name TEXT,
+    call_name TEXT,
+    call_params JSON,
+    result SMALLINT NOT NULL,
+    -- "index" INT NOT NULL,
+    -- pallet_index SMALLINT NOT NULL,
+    -- variant_index SMALLINT NOT NULL,
+    -- signed_address TEXT,
+    extrinsic_hash_bytes BYTEA NOT NULL
+    -- signed_address_bytes BYTEA
+);
+CREATE UNIQUE INDEX  IF NOT EXISTS  unique_index_extrinsics ON extrinsics (id);
+
+
+DROP TABLE IF EXISTS events;
+CREATE TABLE IF NOT EXISTS events (
+    id TEXT NOT NULL,
+    block_number BIGINT NOT NULL,
+    extrinsic_id TEXT,
+    mod_name TEXT,
+    event_name TEXT,
+    phase SMALLINT NOT NULL
+    -- "index" INT NOT NULL,
+    -- pallet_index SMALLINT NOT NULL,
+    -- variant_index SMALLINT NOT NULL,
+    -- signed_address TEXT,
+    -- signed_address_bytes BYTEA
+);
+CREATE UNIQUE INDEX  IF NOT EXISTS  unique_index_events ON events (id);
+
+
+
 DROP TABLE IF EXISTS blocks;
 CREATE TABLE IF NOT EXISTS blocks (
     "number" bigint NOT NULL,
+    "timestamp" BIGINT,
     "hash" TEXT NOT NULL,
     parent_hash TEXT NOT NULL,
     extrinsics_root TEXT NOT NULL,
@@ -9,31 +59,15 @@ CREATE TABLE IF NOT EXISTS blocks (
     parent_hash_bytes BYTEA NOT NULL,
     extrinsics_root_bytes BYTEA NOT NULL,
     state_root_bytes BYTEA NOT NULL,
+    log_id TEXT,
+    extrinsic_id TEXT,
+    event_id TEXT,
+    is_finalized BOOLEAN NOT NULL,
     PRIMARY KEY (number)
 );
 
 CREATE INDEX  IF NOT EXISTS  idx_blocks_hash ON blocks ("hash");
 CREATE INDEX  IF NOT EXISTS  idx_blocks_parent_hash ON blocks (parent_hash);
-
-
-DROP TABLE IF EXISTS extrinsics;
-CREATE TABLE IF NOT EXISTS extrinsics (
-    block_number bigint NOT NULL,
-    block_hash TEXT NOT NULL,
-    "index" INT NOT NULL,
-    is_signed BOOLEAN NOT NULL,
-    pallet_name TEXT,
-    variant_name TEXT,
-    pallet_index SMALLINT NOT NULL,
-    variant_index SMALLINT NOT NULL,
-    signed_address TEXT,
-    block_hash_bytes BYTEA NOT NULL,
-    signed_address_bytes BYTEA
-);
-
-CREATE UNIQUE INDEX  IF NOT EXISTS  index_extrinsics ON extrinsics (block_number, "index");
-CREATE INDEX  IF NOT EXISTS  index_extrinsics_block_hash ON extrinsics (block_hash);
-
 
 
 -- CREATE TABLE IF NOT EXISTS raw_event (
