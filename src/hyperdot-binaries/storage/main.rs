@@ -26,7 +26,6 @@ async fn main() -> anyhow::Result<()> {
         .try_init()?;
 
     let args = AppArgs::parse();
-    println!("{}", args.catalog);
     tracing::info!("preapre {} storage node", args.name);
     let catalog = Catalog::try_from(Path::new(&args.catalog))
         .map_err(|err| anyhow!("init catalog error: {}", err))?;

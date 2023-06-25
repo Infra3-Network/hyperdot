@@ -1,13 +1,25 @@
 use std::path::Path;
 
+use anyhow::anyhow;
+use clap::Parser;
 use hyperdot_core::config::Catalog;
 use hyperdot_node::streaming::block;
 // use hyperdot_node::streaming::jsonrpc::server::JsonRpcServerParams;
-// use hyperdot_node::streaming::BlockStreaming;
+// use hyperdot_ntde::streaming::BlockStreaming;
 // use hyperdot_node::streaming::OpenParams;
 // use hyperdot_node::streaming::SpawnPolkadotParams;
 // use subxt::PolkadotConfig;
 use tracing_subscriber::util::SubscriberInitExt;
+
+#[derive(Debug, Parser)]
+struct AppArgs {
+    /// The name of stroage node.
+    #[arg(long)]
+    name: String,
+    /// The catalog config path.
+    #[arg(long)]
+    catalog: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,7 +29,9 @@ async fn main() -> anyhow::Result<()> {
         .finish()
         .try_init()?;
 
-    let catalog = Catalog::try_from(Path::new(".local/config.json"))?;
+    let args = AppArgs::parse();
+    let catalog = Catalog::try_from(Path::new(&args.catalog))
+        .map_err(|err| anyhow!("init catalog error: {}", err))?;
     let mut controller = block::StreamingController::async_new(catalog).await?;
     controller.start().await?;
     controller.stopped().await?;

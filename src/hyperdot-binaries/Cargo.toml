@@ -28,3 +28,9 @@ name = "hyperdot-streaming"
 path = "streaming/main.rs"
 doctest = false
 test = false
+
+[[bin]]
+name = "hyperctl"
+path = "ctl/main.rs"
+doctest = false
+test = false

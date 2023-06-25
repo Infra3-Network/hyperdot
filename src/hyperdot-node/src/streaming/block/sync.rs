@@ -148,6 +148,11 @@ impl PolkadotSyncer {
                 Ok(b) => b,
             };
 
+            let address = crate::runtime_api::polkadot::storage().timestamp().now();
+            let block_storage = online_block.storage();
+            let value = block_storage.fetch(&address).await.unwrap();
+            println!("block timestamp = {:?}", value);
+
             let body: anyhow::Result<polkadot_chain::BlockGenericBody> = {
                 let online_body = online_block.body().await?;
                 let mut exts = vec![];
@@ -207,6 +212,11 @@ impl PolkadotSyncer {
                 }
                 Ok(b) => b,
             };
+
+            let address = crate::runtime_api::polkadot::storage().timestamp().now();
+            let block_storage = online_block.storage();
+            let value = block_storage.fetch(&address).await.unwrap();
+            println!("block timestamp = {:?}", value);
 
             let body: anyhow::Result<polkadot_chain::BlockGenericBody> = {
                 let online_body = online_block.body().await?;
