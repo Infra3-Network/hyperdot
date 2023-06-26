@@ -9,13 +9,19 @@ hyperdot-core = { path = "../hyperdot-core" }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-lazy_static = { workspace = true }
 tower = { version = "0.4.13", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["full"] }
 hyper = { version = "0.14.20" }
 tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
 subxt = { workspace = true }
 clap = { workspace = true, features=["derive"]}
+serde = { workspace = true, features = ["derive"]}
+serde_json = { workspace = true }
+lazy_static = { workspace = true}
+subxt-codegen = { version = "0.29" }
+syn = { version = "2.0" }
+quote = { version = "1.0" }
+proc-macro2  = { version = "1.0"}
 
 [[bin]]
 name = "hyperdot-storage"

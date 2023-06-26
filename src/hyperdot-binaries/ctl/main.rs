@@ -1,32 +1,35 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use clap::ErrorKind;
+use clap::CommandFactory;
+use clap::Parser;
 use commands::MetadataCodegen;
 
 mod commands;
 
-#[derive(clap::Parser)]
-#[cfg_attr(
-    not(feature = "headless"),
-    clap(
-        name = "hyperctl",
-        about = "WebAssembly standalone runtime.",
-        version,
-        author
-    )
-)]
-#[cfg_attr(
-    feature = "headless",
-    clap(
-        name = "wasmer-headless",
-        about = "WebAssembly standalone runtime (headless).",
-        version,
-        author
-    )
-)]
+#[derive(Debug, Parser)]
+pub struct Args {
+    /// Print version info and exit.
+    #[clap(short = 'V', long)]
+    version: bool,
+    #[clap(subcommand)]
+    cmd: Option<Cmd>,
+}
 
-enum HyperCtlOptions {
+#[derive(Parser, Debug)]
+enum Cmd {
     /// Generate runtime metadata
     #[clap(name = "metadata-codegen")]
     MetadataCodegen(MetadataCodegen),
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::try_parse()?;
+    match args.cmd {
+        Some(Cmd::MetadataCodegen(cmd)) => cmd.execute(),
+        None => {
+            Args::command().print_long_help()?;
+            // Note: clap uses an exit code of 2 when CLI parsing fails
+            std::process::exit(2);
+        }
+    }
 }
