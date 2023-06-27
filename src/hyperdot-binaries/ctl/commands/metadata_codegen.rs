@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use proc_macro2::TokenStream;
 use quote::quote;
 use serde::ser::SerializeStruct;
@@ -49,26 +50,41 @@ pub struct MetadataCodegen {
 impl MetadataCodegen {
     pub fn as_default(mut self) -> anyhow::Result<Self> {
         if self.config.is_none() {
-            let manifest_dir = env::var("CARGO_MANIFEST_DIR")
-                .map_err(|_| anyhow::anyhow!("CARGO_MANIFEST_DIR env variable unset"))?;
-            let path = PathBuf::from(manifest_dir).join("config/metdata.json");
+            let path =
+                PathBuf::from_str("./config/metadata.json").map_err(|err| anyhow!("{}", err))?;
+            self.config = Some(path.as_os_str().to_str().unwrap().to_string());
         }
-        self
+
+        if self.dir.is_none() {
+            let path =
+                PathBuf::from_str("./src/hyperdot-core/src").map_err(|err| anyhow!("{}", err))?;
+            self.dir = Some(path.as_os_str().to_str().unwrap().to_string());
+        }
+
+        if self.mod_name.is_none() {
+            self.mod_name = Some(String::from("runtime_api"))
+        }
+
+        Ok(self)
     }
 }
 
 impl MetadataCodegen {
-    pub fn execute(self) -> anyhow::Result<()> {
+    pub fn execute(mut self) -> anyhow::Result<()> {
+        self = self.as_default()?;
+        println!("{:?}", self);
         let cfgs = self.parse_config()?;
+        println!("{:?}", cfgs);
         let mut tokens = vec![];
         for cfg in cfgs.iter() {
             tokens.push(Self::runtime_api_codegen(cfg)?);
         }
-        Ok(())
+
+        self.write_tokens(&tokens)
     }
 
     fn parse_config(&self) -> anyhow::Result<Vec<MetadataConfig>> {
-        let fs = File::open(&self.config)?;
+        let fs = File::open(&self.config.as_ref().unwrap())?;
         let rd = BufReader::new(fs);
         serde_json::from_reader(rd).map_err(|err| anyhow::anyhow!("{}", err))
     }
@@ -99,7 +115,7 @@ impl MetadataCodegen {
                     false,
                 )
                 .map_err(|err| anyhow::anyhow!("{}", err))?;
-                let output_rs = cfg.name.clone();
+                let output_rs = cfg.name.clone().to_lowercase();
 
                 Ok(MetadataToken { ts, output_rs })
             }
@@ -118,5 +134,59 @@ impl MetadataCodegen {
         }
     }
 
-    fn write_tokens(tokens: &[MetadataToken]) -> anyhow::Result<()> {}
+    fn write_tokens(&self, tokens: &[MetadataToken]) -> anyhow::Result<()> {
+        // Create the directory if it doesn't exist
+        let dir_name = self.dir.as_ref().unwrap();
+        let mod_name = self.mod_name.as_ref().unwrap();
+        let mod_path = format!("{}/{}", dir_name, mod_name);
+        let mod_path = Path::new(&mod_path);
+        if !mod_path.exists() {
+            std::fs::create_dir(mod_path)
+                .map_err(|err| anyhow!("Failed to create directory: {}", err))?;
+        }
+
+        // Create the module file if it doesn't exist
+        let mod_path = mod_path.join(format!("mod.rs"));
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&mod_path)
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to open directory {}, error: {}",
+                    mod_path.display(),
+                    err
+                )
+            })?;
+        self.write_tokens_to_file(file, tokens, &mod_path)
+    }
+
+    fn write_tokens_to_file(
+        &self,
+        mut f: std::fs::File,
+        tokens: &[MetadataToken],
+        mod_path: &Path,
+    ) -> anyhow::Result<()> {
+        for token in tokens {
+            let fname = format!("{}.rs", token.output_rs);
+            let fp = mod_path.join(&fname);
+            let mut fs = std::fs::OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(&fp)
+                .map_err(|err| anyhow!("open mod file {} error: {}", fp.display(), err))?;
+
+            write!(fs, "{}", token.ts).map_err(|err| {
+                anyhow!("write mod file {} token error: {}", token.output_rs, err)
+            })?;
+        }
+        for token in tokens {
+            write!(f, "pub mod {};\n", token.output_rs)
+                .map_err(|err| anyhow!("write mod file {} error: {}", token.output_rs, err))?;
+        }
+
+        Ok(())
+    }
 }
