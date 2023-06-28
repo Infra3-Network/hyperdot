@@ -56,8 +56,8 @@ impl MetadataCodegen {
         }
 
         if self.dir.is_none() {
-            let path =
-                PathBuf::from_str("./src/hyperdot-core/src").map_err(|err| anyhow!("{}", err))?;
+            let path = PathBuf::from_str("./src/hyperdot-core/src/runtime_api")
+                .map_err(|err| anyhow!("{}", err))?;
             self.dir = Some(path.as_os_str().to_str().unwrap().to_string());
         }
 
@@ -137,37 +137,31 @@ impl MetadataCodegen {
     fn write_tokens(&self, tokens: &[MetadataToken]) -> anyhow::Result<()> {
         // Create the directory if it doesn't exist
         let dir_name = self.dir.as_ref().unwrap();
-        let mod_name = self.mod_name.as_ref().unwrap();
-        let mod_path = format!("{}/{}", dir_name, mod_name);
-        let mod_path = Path::new(&mod_path);
+        let mod_path = Path::new(&dir_name);
         if !mod_path.exists() {
             std::fs::create_dir(mod_path)
                 .map_err(|err| anyhow!("Failed to create directory: {}", err))?;
         }
 
         // Create the module file if it doesn't exist
-        let mod_path = mod_path.join(format!("mod.rs"));
-        let file = std::fs::OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(&mod_path)
-            .map_err(|err| {
-                anyhow!(
-                    "Failed to open directory {}, error: {}",
-                    mod_path.display(),
-                    err
-                )
-            })?;
-        self.write_tokens_to_file(file, tokens, &mod_path)
+        self.write_tokens_to_file(tokens, &mod_path)
     }
 
     fn write_tokens_to_file(
         &self,
-        mut f: std::fs::File,
         tokens: &[MetadataToken],
         mod_path: &Path,
     ) -> anyhow::Result<()> {
+        let mod_file_path = mod_path.join(format!("mod.rs"));
+        let mut mod_file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&mod_file_path)
+            .map_err(|err| anyhow!("open file {} error: {}", mod_file_path.display(), err))?;
+
+        println!("create mod file: {}", mod_file_path.display());
+
         for token in tokens {
             let fname = format!("{}.rs", token.output_rs);
             let fp = mod_path.join(&fname);
@@ -178,12 +172,20 @@ impl MetadataCodegen {
                 .open(&fp)
                 .map_err(|err| anyhow!("open mod file {} error: {}", fp.display(), err))?;
 
+            println!("create runtime file: {}", fp.display());
             write!(fs, "{}", token.ts).map_err(|err| {
                 anyhow!("write mod file {} token error: {}", token.output_rs, err)
             })?;
+            println!(
+                "write runtime {} token to file {} success",
+                token.output_rs,
+                fp.display()
+            );
         }
+
+        // write runtime rust file to mod file.
         for token in tokens {
-            write!(f, "pub mod {};\n", token.output_rs)
+            write!(mod_file, "pub mod {};\n", token.output_rs)
                 .map_err(|err| anyhow!("write mod file {} error: {}", token.output_rs, err))?;
         }
 

@@ -9,5 +9,6 @@ serde_json = { workspace = true }
 anyhow = { workspace = true}
 tokio-postgres = { version = "0.7", features = ["with-bit-vec-0_6", "array-impls"] }
 rust_decimal = { version = "1.29", features = ["tokio-pg"] }
+subxt = { workspace = true }
 
 [build-dependencies]
