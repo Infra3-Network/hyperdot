@@ -14,7 +14,7 @@ use tokio::task::JoinHandle;
 
 use super::sync::PolkadotSyncer;
 use super::sync::PolkadotSyncerHandle;
-use super::Syncer;
+// use super::Syncer;
 use crate::streaming::speaker;
 // use crate::streaming::speaker::SpeakerController;
 use crate::types::block::polkadot_chain;

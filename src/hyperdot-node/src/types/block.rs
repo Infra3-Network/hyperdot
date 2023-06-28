@@ -77,6 +77,41 @@ pub mod polkadot_chain {
         pub events: Option<Vec<EventDescribe>>,
     }
 
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+    pub struct Log {
+        pub id: String,
+        pub block_number: u64,
+        pub r#type: String,
+        pub engine: Option<String>,
+        pub data: Option<String>,
+    }
+
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+    pub struct Event {
+        pub id: String,
+        pub block_number: u64,
+        pub block_timestamp: u64,
+        pub extrinsic_index: u32,
+        pub mod_name: String,
+        pub event_name: String,
+        pub event_index: u32,
+        pub phase: u16,
+        pub extrinsic_hash: Vec<u8>,
+        pub values: Option<serde_json::Value>,
+    }
+
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+    pub struct Extrinsic {
+        pub id: String,
+        pub block_number: u64,
+        pub block_timestamp: u64,
+        pub mod_name: String,
+        pub call_name: String,
+        pub call_params: Option<serde_json::Value>,
+        pub signature: Option<Vec<u8>>,
+        //    pub root_call_bytes: Vec<u8>,
+    }
+
     #[derive(Debug, Default, Clone, Serialize, Deserialize)]
     pub struct BlockGenericBody {
         /// The decoded extrinsics record key of extrinsic in block.
@@ -84,8 +119,9 @@ pub mod polkadot_chain {
     }
 
     #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-    pub struct BlockGenericHeader {
+    pub struct Header {
         pub block_number: u64,
+        pub block_timestamp: u64,
         pub block_hash: Vec<u8>,
         pub parent_hash: Vec<u8>,
         pub extrinsics_root: Vec<u8>,
@@ -94,7 +130,10 @@ pub mod polkadot_chain {
 
     #[derive(Debug, Default, Clone, Serialize, Deserialize)]
     pub struct Block {
-        pub header: BlockGenericHeader,
-        pub body: Option<BlockGenericBody>,
+        pub header: Header,
+        // pub body: Option<BlockGenericBody>,
+        pub extrinsics: Option<Vec<Extrinsic>>,
+        pub events: Option<Vec<Event>>,
+        pub logs: Option<Vec<Log>>,
     }
 }
