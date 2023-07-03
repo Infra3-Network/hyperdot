@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::anyhow;
 use clap::Parser;
 use hyperdot_core::config::Catalog;
-use hyperdot_node::streaming::block;
+use hyperdot_node::streaming::etl;
 // use hyperdot_node::streaming::jsonrpc::server::JsonRpcServerParams;
 // use hyperdot_ntde::streaming::BlockStreaming;
 // use hyperdot_node::streaming::OpenParams;
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let args = AppArgs::parse();
     let catalog = Catalog::try_from(Path::new(&args.catalog))
         .map_err(|err| anyhow!("init catalog error: {}", err))?;
-    let mut controller = block::StreamingController::async_new(catalog).await?;
+    let mut controller = etl::StreamingController::async_new(catalog).await?;
     controller.start().await?;
     controller.stopped().await?;
     Ok(())
