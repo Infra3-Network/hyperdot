@@ -119,6 +119,12 @@ pub mod polkadot_chain {
     }
 
     #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+    pub struct Body {
+        pub extrinsics: Option<Vec<Extrinsic>>,
+        pub events: Option<Vec<Event>>,
+    }
+
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
     pub struct Header {
         pub block_number: u64,
         pub block_timestamp: u64,
@@ -126,14 +132,16 @@ pub mod polkadot_chain {
         pub parent_hash: Vec<u8>,
         pub extrinsics_root: Vec<u8>,
         pub state_root: Vec<u8>,
+        pub is_finished: bool,
+        pub validator: Option<Vec<u8>>,
+        pub spec_version: u32,
     }
 
     #[derive(Debug, Default, Clone, Serialize, Deserialize)]
     pub struct Block {
         pub header: Header,
-        // pub body: Option<BlockGenericBody>,
-        pub extrinsics: Option<Vec<Extrinsic>>,
-        pub events: Option<Vec<Event>>,
+        pub body: Body,
         pub logs: Option<Vec<Log>>,
+        // pub body: Option<BlockGenericBody>,
     }
 }
