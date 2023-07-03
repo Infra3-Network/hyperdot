@@ -1,26 +1,27 @@
 use anyhow::anyhow;
-use futures::Future;
+// use futures::Future;
 use futures::StreamExt;
-use hyper::body::HttpBody;
+// use hyper::body::HttpBody;
 use hyperdot_core::config::ChainConfig;
-use subxt::blocks::ExtrinsicDetails;
-use subxt::blocks::ExtrinsicEvents;
-use subxt::client::OfflineClientT;
-use subxt::Config;
-use subxt::OnlineClient;
+// use subxt::blocks::ExtrinsicDetails;
+// use subxt::blocks::ExtrinsicEvents;
+// use subxt::client::OfflineClientT;
+// use subxt::Config;
+// use subxt::OnlineClient;
 use subxt::PolkadotConfig;
-use subxt::SubstrateConfig;
+// use subxt::SubstrateConfig;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use url::Url;
 
+use super::extracts::PolkadotBlockExtracter;
 // use super::handle::BlockHandleImpl;
 // use super::handle::BlockHandler;
 use crate::rpc::JseeRpcClient;
 use crate::rpc::JseeRpcClientParams;
 use crate::types::block::polkadot_chain;
-use crate::types::block::polkadot_chain::Header;
-use crate::types::polkadot;
+// use crate::types::block::polkadot_chain::Header;
+// use crate::types::polkadot;
 
 // pub struct CachedBody<T, C>
 // where
@@ -100,11 +101,12 @@ impl PolkadotSyncerHandle {
 }
 
 pub struct PolkadotSyncer {
-    tx: UnboundedSender<polkadot_chain::Block>,
+    client: JseeRpcClient<PolkadotConfig>,
+    block_extractor: PolkadotBlockExtracter,
 }
 
 impl PolkadotSyncer {
-    pub async fn spawn_polkadot(
+    pub async fn spawn(
         chain: &ChainConfig,
         tx: UnboundedSender<polkadot_chain::Block>,
     ) -> anyhow::Result<PolkadotSyncerHandle> {
@@ -115,30 +117,20 @@ impl PolkadotSyncer {
             JseeRpcClient::<PolkadotConfig>::async_new(&chain.url, &JseeRpcClientParams::default())
                 .await
                 .map_err(|err| anyhow!("{}: new rpc client error: {}", chain.name, err))?;
-        let tg = tokio::spawn(async move { Self::polkadot_handle(tx, client.online).await });
+
+        let block_extractor = PolkadotBlockExtracter::new(client.get_online());
+        let syncer = PolkadotSyncer {
+            client,
+            block_extractor,
+        };
+
+        let tg = tokio::spawn(async move { syncer.main_loop(tx).await });
 
         Ok(PolkadotSyncerHandle { tg })
     }
 
-    pub async fn spawn_substrate(
-        chain: &ChainConfig,
-        tx: UnboundedSender<polkadot_chain::Block>,
-    ) -> anyhow::Result<PolkadotSyncerHandle> {
-        let client = JseeRpcClient::<SubstrateConfig>::async_new(
-            &chain.url,
-            &JseeRpcClientParams::default(),
-        )
-        .await?;
-        let tg = tokio::spawn(async move { Self::substrate_handle(tx, client.online).await });
-
-        Ok(PolkadotSyncerHandle { tg })
-    }
-
-    async fn substrate_handle(
-        tx: UnboundedSender<polkadot_chain::Block>,
-        client: OnlineClient<SubstrateConfig>,
-    ) -> anyhow::Result<()> {
-        let mut blocks_sub = client.blocks().subscribe_finalized().await?;
+    async fn main_loop(mut self, tx: UnboundedSender<polkadot_chain::Block>) -> anyhow::Result<()> {
+        let mut blocks_sub = self.client.online.blocks().subscribe_finalized().await?;
         while let Some(online_block) = blocks_sub.next().await {
             let online_block = match online_block {
                 Err(err) => {
@@ -148,142 +140,20 @@ impl PolkadotSyncer {
                 Ok(b) => b,
             };
 
-            let address = crate::runtime_api::polkadot::storage().timestamp().now();
-            let block_storage = online_block.storage();
-            let value = block_storage.fetch(&address).await.unwrap();
-            println!("block timestamp = {:?}", value);
-
-            let body: anyhow::Result<polkadot_chain::BlockGenericBody> = {
-                let online_body = online_block.body().await?;
-                let mut exts = vec![];
-                for online_ext in online_body.extrinsics().iter() {
-                    let online_ext = match online_ext {
-                        Err(err) => {
-                            tracing::warn!("handle block ext error: {}", err);
-                            continue;
-                        }
-                        Ok(ext) => ext,
-                    };
-
-                    exts.push(Self::handle_extrinsic_detial(online_ext).await?);
-                }
-
-                Ok(polkadot_chain::BlockGenericBody { extrinsics: exts })
-            };
-
-            let body = (match body {
+            let extracted_block = match self.block_extractor.extract(online_block).await {
                 Err(err) => {
-                    tracing::warn!("can't handle block body error: {}", err);
-                    None
-                }
-                Ok(body) => Some(body),
-            });
-
-            let block = polkadot_chain::Block {
-                header: Header {
-                    block_number: online_block.header().number as u64,
-                    block_hash: online_block.hash().as_bytes().to_vec(),
-                    parent_hash: online_block.header().parent_hash.as_bytes().to_vec(),
-                    extrinsics_root: online_block.header().extrinsics_root.as_bytes().to_vec(),
-                    state_root: online_block.header().state_root.as_bytes().to_vec(),
-                },
-                body,
-            };
-
-            if let Err(err) = tx.send(block) {
-                tracing::error!("streaming channel closed");
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn polkadot_handle(
-        tx: UnboundedSender<polkadot_chain::Block>,
-        client: OnlineClient<PolkadotConfig>,
-    ) -> anyhow::Result<()> {
-        let mut blocks_sub = client.blocks().subscribe_finalized().await?;
-        while let Some(online_block) = blocks_sub.next().await {
-            let online_block = match online_block {
-                Err(err) => {
-                    tracing::warn!("sub block body: {}", err);
+                    tracing::warn!("handle block ext error: {}", err);
                     continue;
                 }
                 Ok(b) => b,
             };
 
-            let address = crate::runtime_api::polkadot::storage().timestamp().now();
-            let block_storage = online_block.storage();
-            let value = block_storage.fetch(&address).await.unwrap();
-            println!("block timestamp = {:?}", value);
-
-            let body: anyhow::Result<polkadot_chain::BlockGenericBody> = {
-                let online_body = online_block.body().await?;
-                let mut exts = vec![];
-                for online_ext in online_body.extrinsics().iter() {
-                    let online_ext = match online_ext {
-                        Err(err) => {
-                            tracing::warn!("handle block ext error: {}", err);
-                            continue;
-                        }
-                        Ok(ext) => ext,
-                    };
-
-                    exts.push(Self::handle_extrinsic_detial(online_ext).await?);
-                }
-
-                Ok(polkadot_chain::BlockGenericBody { extrinsics: exts })
-            };
-
-            let body = (match body {
-                Err(err) => {
-                    tracing::warn!("can't handle block body error: {}", err);
-                    None
-                }
-                Ok(body) => Some(body),
-            });
-
-            let block = polkadot_chain::Block {
-                header: Header {
-                    block_number: online_block.header().number as u64,
-                    block_hash: online_block.hash().as_bytes().to_vec(),
-                    parent_hash: online_block.header().parent_hash.as_bytes().to_vec(),
-                    extrinsics_root: online_block.header().extrinsics_root.as_bytes().to_vec(),
-                    state_root: online_block.header().state_root.as_bytes().to_vec(),
-                },
-                body,
-            };
-
-            if let Err(err) = tx.send(block) {
+            if let Err(err) = tx.send(extracted_block) {
                 tracing::error!("streaming channel closed");
                 break;
             }
         }
 
         Ok(())
-    }
-
-    async fn handle_extrinsic_detial<T: subxt::Config>(
-        online_ext: subxt::blocks::ExtrinsicDetails<T, OnlineClient<T>>,
-    ) -> anyhow::Result<polkadot_chain::ExtrinsicDetails> {
-        let mut ext = polkadot_chain::ExtrinsicDetails::default();
-        ext.index = online_ext.index();
-        ext.is_signed = online_ext.is_signed();
-        ext.pallet_index = online_ext.pallet_index();
-        ext.pallet_name = online_ext
-            .pallet_name()
-            .map_or(None, |pname| Some(pname.to_string()));
-        ext.variant_index = online_ext.variant_index();
-        ext.variant_name = online_ext
-            .variant_name()
-            .map_or(None, |vname| Some(vname.to_string()));
-        ext.signed_address = online_ext
-            .address_bytes()
-            .map_or(None, |bs| Some(bs.to_vec()));
-        ext.bytes = online_ext.bytes().to_vec();
-        ext.root_extrinsic_bytes = None; // TODO;
-        ext.events = None; // TODO;
-        Ok(ext)
     }
 }

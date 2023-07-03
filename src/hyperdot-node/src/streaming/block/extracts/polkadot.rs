@@ -1,5 +1,4 @@
 //! Substrate chain extracter
-use std::sync::Arc;
 
 use anyhow::anyhow;
 // use hyperdot_core::runtime_api::kusama;
@@ -11,14 +10,14 @@ use subxt::blocks::ExtrinsicDetails;
 use subxt::blocks::ExtrinsicEvents;
 use subxt::config::substrate::DigestItem;
 use subxt::constants::ConstantsClient;
-use subxt::events::EventDetails;
+// use subxt::events::EventDetails;
 use subxt::events::Phase;
 use subxt::ext::sp_runtime::key_types;
 use subxt::ext::sp_runtime::ConsensusEngineId;
 use subxt::OnlineClient;
 use subxt::PolkadotConfig;
-use subxt::SubstrateConfig;
 
+// use subxt::SubstrateConfig;
 use crate::types::block::polkadot_chain;
 
 struct BodyBuilder {
@@ -240,15 +239,15 @@ impl ConstantExtracter {
     }
 }
 
-pub struct ExtractBlock {
-    online_client: Arc<OnlineClient<PolkadotConfig>>,
+pub struct BlockExtracter {
+    online_client: OnlineClient<PolkadotConfig>,
     body_builder: BodyBuilder,
     storage: StorageExtracter,
     constant: ConstantExtracter,
 }
 
-impl ExtractBlock {
-    pub fn new(online_client: Arc<OnlineClient<PolkadotConfig>>) -> Self {
+impl BlockExtracter {
+    pub fn new(online_client: OnlineClient<PolkadotConfig>) -> Self {
         Self {
             online_client,
             storage: StorageExtracter::new(),
@@ -356,14 +355,6 @@ impl ExtractBlock {
             key_types::GRANDPA => Some("Grandpa".to_string()),
             key_types::AURA => Some("Aura".to_string()),
             _ => None,
-        }
-    }
-
-    fn extract_event_phase(phase: Phase) -> u16 {
-        match phase {
-            Phase::ApplyExtrinsic(_) => 0,
-            Phase::Finalization => 1,
-            Phase::Initialization => 2,
         }
     }
 }

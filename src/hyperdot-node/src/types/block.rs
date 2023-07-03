@@ -83,7 +83,7 @@ pub mod polkadot_chain {
         pub block_number: u64,
         pub r#type: String,
         pub engine: Option<String>,
-        pub data: Option<String>,
+        pub data: Option<Vec<u8>>,
     }
 
     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

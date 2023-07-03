@@ -1,11 +1,10 @@
-pub mod polkadot;
-pub mod rpc;
+// pub mod polkadot;
 pub mod block;
+pub mod rpc;
 
 // use hyperdot_common_macros::ToParams;
 // use serde::Deserialize;
 // use serde::Serialize;
-
 
 // /// A block request type
 // #[derive(Clone, Serialize, Deserialize)]
