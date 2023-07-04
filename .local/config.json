@@ -20,14 +20,14 @@
                                     "name": "pg1",
                                     "username": "postgres",
                                     "password": "postgres",
-                                    "host": "hyperdot",
+                                    "host": "127.0.0.1",
                                     "port": 5432
                                 },
                                 {
                                     "name": "pg2",
                                     "username": "postgres",
                                     "password": "postgres",
-                                    "host": "hyperdot",
+                                    "host": "127.0.0.1",
                                     "port": 5432
                                 }
                             ],
@@ -37,7 +37,7 @@
                                     "name": "LocalSubstrate",
                                     "use_connection": "pg1",
                                     "dbname": "local_substrate",
-                                    "enabled": true
+                                    "enabled": false
                                 },
                                 {
                                     "id": 30,
@@ -92,9 +92,9 @@
         },
         {
             "id": 30,
-            "name": "Rococo",
+            "name": "Westend",
             "url": "wss://westend-rpc.polkadot.io:443",
-            "enabled": false,
+            "enabled": true,
             "kind": "Polkadot",
             "polkadot_runtime": {
                 "config": "polkadot"
@@ -105,9 +105,9 @@
         },
         {
             "id": 40,
-            "name": "Westend",
+            "name": "Rococo",
             "url": "wss://rococo-rpc.polkadot.io:443",
-            "enabled": true,
+            "enabled": false,
             "kind": "Polkadot",
             "polkadot_runtime": {
                 "config": "polkadot"

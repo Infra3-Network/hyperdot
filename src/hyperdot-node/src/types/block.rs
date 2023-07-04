@@ -92,6 +92,7 @@ pub mod polkadot_chain {
         pub block_number: u64,
         pub block_timestamp: u64,
         pub extrinsic_index: u32,
+        pub extrinsic_id: String,
         pub mod_name: String,
         pub event_name: String,
         pub event_index: u32,
@@ -104,11 +105,13 @@ pub mod polkadot_chain {
     pub struct Extrinsic {
         pub id: String,
         pub block_number: u64,
+        pub extrinsic_hash: Vec<u8>,
         pub block_timestamp: u64,
         pub mod_name: String,
         pub call_name: String,
         pub call_params: Option<serde_json::Value>,
         pub signature: Option<Vec<u8>>,
+        pub result: bool,
         //    pub root_call_bytes: Vec<u8>,
     }
 

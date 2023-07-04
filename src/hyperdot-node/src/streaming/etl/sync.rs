@@ -39,7 +39,7 @@ impl PolkadotSyncer {
                 .await
                 .map_err(|err| anyhow!("{}: new rpc client error: {}", chain.name, err))?;
 
-        let block_extractor = PolkadotBlockExtracter::new(client.get_online());
+        let block_extractor = PolkadotBlockExtracter::new(&client.online);
         let syncer = PolkadotSyncer {
             client,
             block_extractor,
