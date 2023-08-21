@@ -65,10 +65,13 @@ pub struct ExtrinsicDescribe {
     pub events: Vec<EventDescribe>,
 }
 
+
+
 /// A block request type
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
     pub block_number: u64,
+    pub block_timestamp: u64,
     pub block_hash: Vec<u8>,
     pub parent_hash: Vec<u8>,
     pub state_root: Vec<u8>,
@@ -78,8 +81,10 @@ pub struct BlockHeader {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Block {
     pub header: BlockHeader,
-    /// The decoded extrinsics record key of extrinsic in block.
-    pub extrinsics: Vec<ExtrinsicDescribe>,
+    pub extrinsics: Vec<Extrinsic>,
+    pub events: Vec<Event>,
+    pub logs: Vec<Log>,
+    // pub extrinsics: Vec<ExtrinsicDescribe>,
 }
 
 // header + extrinsics
